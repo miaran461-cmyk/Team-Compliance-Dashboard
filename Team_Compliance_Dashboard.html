@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Compliance Dashboard - WK14</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8f0fe; color: #333; }
+
+  /* Password Screen */
+  #password-screen {
+    position: fixed; inset: 0; background: linear-gradient(135deg, #0a1628, #0d2b5e, #1a4a9e);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+  }
+  .pw-box {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 16px; padding: 48px 40px; text-align: center; backdrop-filter: blur(10px);
+    min-width: 340px;
+  }
+  .pw-box h2 { color: #fff; font-size: 1.4rem; margin-bottom: 8px; }
+  .pw-box p { color: rgba(255,255,255,0.5); font-size: 0.85rem; margin-bottom: 28px; }
+  .pw-box input {
+    width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08); color: #fff; font-size: 1rem; text-align: center;
+    letter-spacing: 4px; outline: none; margin-bottom: 16px;
+  }
+  .pw-box input::placeholder { letter-spacing: 1px; color: rgba(255,255,255,0.3); }
+  .pw-box button {
+    width: 100%; padding: 12px; border-radius: 8px; border: none;
+    background: linear-gradient(135deg, #1a6fd4, #0d4fa8); color: #fff;
+    font-size: 1rem; cursor: pointer; font-weight: 600;
+  }
+  .pw-box button:hover { opacity: 0.9; }
+  #pw-error { color: #ff6b6b; font-size: 0.85rem; margin-top: 12px; display: none; }
+
+  /* Main Layout */
+  #main { display: none; }
+  header {
+    background: linear-gradient(135deg, #0d47a1, #1565c0);
+    color: #fff; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; }
+  header .sub { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-top: 4px; }
+  .badge { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 4px 14px; font-size: 0.8rem; }
+
+  nav {
+    background: #fff; border-bottom: 1px solid #e0e0e0;
+    display: flex; padding: 0 32px; gap: 4px;
+  }
+  nav button {
+    padding: 14px 20px; border: none; background: none; cursor: pointer;
+    font-size: 0.9rem; color: #666; border-bottom: 3px solid transparent;
+    transition: all 0.2s; font-weight: 500;
+  }
+  nav button.active { color: #1a6fd4; border-bottom-color: #1a6fd4; font-weight: 600; }
+  nav button:hover { color: #1a6fd4; }
+
+  .content { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .card {
+    background: #fff; border-radius: 12px; padding: 20px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #1a6fd4;
+  }
+  .card.red { border-left-color: #ff6b6b; }
+  .card.orange { border-left-color: #ffa94d; }
+  .card.green { border-left-color: #51cf66; }
+  .card.blue { border-left-color: #339af0; }
+  .card-label { font-size: 0.78rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card-value { font-size: 2rem; font-weight: 700; color: #1a1a2e; }
+  .card-sub { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+
+  /* Section */
+  .section { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+  .section-title { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+  .section-title span { font-size: 1.2rem; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { background: #f8f9fa; color: #555; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e9ecef; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+  tr:hover td { background: #fafbff; }
+  tr:last-child td { border-bottom: none; }
+
+  .tag {
+    display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+  }
+  .tag-late { background: #fff3cd; color: #856404; }
+  .tag-ncns { background: #f8d7da; color: #842029; }
+  .tag-ok { background: #d1e7dd; color: #0f5132; }
+  .tag-warn { background: #fff3cd; color: #664d03; }
+  .tag-bad { background: #f8d7da; color: #842029; }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .dot-green { background: #51cf66; }
+  .dot-yellow { background: #ffd43b; }
+  .dot-red { background: #ff6b6b; }
+
+  /* Missed Contact Table */
+  .pct-bar { display: flex; align-items: center; gap: 8px; }
+  .bar-bg { flex: 1; height: 6px; background: #e9ecef; border-radius: 3px; max-width: 80px; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-green { background: #51cf66; }
+  .bar-yellow { background: #ffd43b; }
+  .bar-red { background: #ff6b6b; }
+
+  .highlight-row td { background: #fff8f0 !important; }
+  .late-row td { background: #fff3cd !important; }
+
+  /* Legend */
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; font-size: 0.82rem; color: #666; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+
+<!-- Password Screen -->
+<div id="password-screen">
+  <div class="pw-box">
+    <h2>Team Compliance Dashboard</h2>
+    <p>请输入你的专属密码</p>
+    <input type="password" id="pw-input" placeholder="输入密码" onkeydown="if(event.key==='Enter')checkPw()">
+    <button onclick="checkPw()">进入</button>
+    <div id="pw-error">密码不正确</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <header>
+    <div>
+      <h1>Team Compliance Dashboard</h1>
+      <div class="sub">Manager: yhaamz</div>
+    </div>
+    <select id="header-week-select" onchange="renderOverview()" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.25);color:#fff;font-size:0.95rem;font-weight:600;cursor:pointer;outline:none;">
+      <option value="WK15" style="background:#74aee0;color:#fff;">2026 WK15</option>
+      <option value="WK14" style="background:#74aee0;color:#fff;">2026 WK14</option>
+      <option value="WK13" style="background:#74aee0;color:#fff;">2026 WK13</option>
+      <option value="WK12" style="background:#74aee0;color:#fff;">2026 WK12</option>
+      <option value="WK11" style="background:#74aee0;color:#fff;">2026 WK11</option>
+      <option value="WK10" style="background:#74aee0;color:#fff;">2026 WK10</option>
+      <option value="WK09" style="background:#74aee0;color:#fff;">2026 WK09</option>
+      <option value="WK08" style="background:#74aee0;color:#fff;">2026 WK08</option>
+      <option value="WK07" style="background:#74aee0;color:#fff;">2026 WK07</option>
+      <option value="WK06" style="background:#74aee0;color:#fff;">2026 WK06</option>
+      <option value="WK05" style="background:#74aee0;color:#fff;">2026 WK05</option>
+      <option value="WK04" style="background:#74aee0;color:#fff;">2026 WK04</option>
+      <option value="WK03" style="background:#74aee0;color:#fff;">2026 WK03</option>
+      <option value="WK02" style="background:#74aee0;color:#fff;">2026 WK02</option>
+      <option value="WK01" style="background:#74aee0;color:#fff;">2026 WK01</option>
+    </select>
+  </header>
+
+  <nav>
+    <button class="active" onclick="showTab('overview')">📊 Overview</button>
+    <button onclick="showTab('late')">⏰ Late / NCNS</button>
+    <button onclick="showTab('missed')">📞 Missed Contacts</button>
+    <button onclick="showTab('remap')">🔍 Remap Audit</button>
+    <button onclick="showTab('monthly')">📅 Monthly Data</button>
+    <button onclick="showTab('individual')">👤 Individual Detail</button>
+  </nav>
+
+  <div class="content">
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview" class="tab-panel active">
+      <div class="summary-grid">
+        <div class="card red">
+          <div class="card-label">Late Incidents</div>
+          <div class="card-value" id="ov-late-count">—</div>
+          <div class="card-sub" id="ov-late-sub">—</div>
+        </div>
+        <div class="card orange">
+          <div class="card-label">Overall Missed% &gt;5%</div>
+          <div class="card-value" id="chat-high-count">—</div>
+          <div class="card-sub" id="ov-chat-sub">Associates this week</div>
+        </div>
+        <div class="card blue">
+          <div class="card-label">Total Missed Contacts</div>
+          <div class="card-value" id="ov-total-missed">—</div>
+          <div class="card-sub" id="ov-total-offered-sub">Overall team</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Team Missed%</div>
+          <div class="card-value" id="ov-team-pct">—</div>
+          <div class="card-sub" id="ov-offered-sub">offered total</div>
+        </div>
+        <div class="card green">
+          <div class="card-label">Team Remap Audit</div>
+          <div class="card-value" id="ov-remap-pct">—</div>
+          <div class="card-sub" id="ov-remap-sub">This week</div>
+        </div>
+        <div class="card orange">
+          <div class="card-label">Weekly Deductions</div>
+          <div class="card-value" id="ov-minus-score">—</div>
+          <div class="card-sub" id="ov-minus-sub">This week</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>🚦</span> Associate Status Summary</div>
+        <div class="legend">
+          <div class="legend-item"><span class="dot dot-green"></span> No issues</div>
+          <div class="legend-item"><span class="dot dot-red"></span> Late / Missed contacts &gt;5%</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Associate</th>
+              <th>Late Incidents</th>
+              <th>Overall Missed%</th>
+              <th>Remap Audit</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="overview-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- LATE / NCNS TAB -->
+    <div id="tab-late" class="tab-panel">
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <label style="font-weight:600;color:#555;font-size:0.9rem;">Select Week:</label>
+        <select id="late-week-select" onchange="renderLate()" style="padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-size:0.9rem;">
+          <option value="WK15">2026 WK15 (Current)</option>
+          <option value="WK14">2026 WK14</option>
+          <option value="WK13">2026 WK13</option>
+          <option value="WK12">2026 WK12</option>
+          <option value="WK11">2026 WK11</option>
+          <option value="WK10">2026 WK10</option>
+          <option value="WK09">2026 WK09</option>
+          <option value="WK08">2026 WK08</option>
+          <option value="WK07">2026 WK07</option>
+          <option value="WK06">2026 WK06</option>
+          <option value="WK05">2026 WK05</option>
+          <option value="WK04">2026 WK04</option>
+          <option value="WK03">2026 WK03</option>
+          <option value="WK02">2026 WK02</option>
+          <option value="WK01">2026 WK01</option>
+        </select>
+      </div>
+
+      <div class="summary-grid">
+        <div class="card red">
+          <div class="card-label">Total Late Incidents</div>
+          <div class="card-value" id="late-total-count">—</div>
+          <div class="card-sub" id="late-total-sub">—</div>
+        </div>
+        <div class="card orange">
+          <div class="card-label">Associates Affected</div>
+          <div class="card-value" id="late-assoc-count">—</div>
+          <div class="card-sub" id="late-assoc-names">—</div>
+        </div>
+        <div class="card green">
+          <div class="card-label">NCNS</div>
+          <div class="card-value" id="late-ncns-count">—</div>
+          <div class="card-sub" id="late-ncns-sub">—</div>
+        </div>
+        <div class="card orange">
+          <div class="card-label">Weekly Deductions</div>
+          <div class="card-value" id="late-minus-score">—</div>
+          <div class="card-sub" id="late-minus-sub">This week</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>⏰</span> Late Incidents Detail — <span id="late-detail-week">WK14</span></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Associate</th>
+              <th>Date</th>
+              <th>Shift Start</th>
+              <th>Late Duration (mins)</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody id="late-detail-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>📅</span> Attendance Overview — All Associates</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Associate</th>
+              <th>Late Count</th>
+              <th>Total Late Mins</th>
+              <th>NCNS</th>
+              <th>Attendance Status</th>
+            </tr>
+          </thead>
+          <tbody id="attendance-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MISSED CONTACTS TAB -->
+    <div id="tab-missed" class="tab-panel">
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <label style="font-weight:600;color:#555;font-size:0.9rem;">Select Week:</label>
+        <select id="missed-week-select" onchange="renderMissed()" style="padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-size:0.9rem;">
+          <option value="WK15">2026 WK15 (Current)</option>
+          <option value="WK14">2026 WK14</option>
+          <option value="WK13">2026 WK13</option>
+          <option value="WK12">2026 WK12</option>
+          <option value="WK11">2026 WK11</option>
+          <option value="WK10">2026 WK10</option>
+          <option value="WK09">2026 WK09</option>
+          <option value="WK08">2026 WK08</option>
+          <option value="WK07">2026 WK07</option>
+          <option value="WK06">2026 WK06</option>
+          <option value="WK05">2026 WK05</option>
+          <option value="WK04">2026 WK04</option>
+          <option value="WK03">2026 WK03</option>
+          <option value="WK02">2026 WK02</option>
+          <option value="WK01">2026 WK01</option>
+        </select>
+      </div>
+      <div class="summary-grid">
+        <div class="card blue">
+          <div class="card-label">Total Offered</div>
+          <div class="card-value" id="mis-total-offered">—</div>
+          <div class="card-sub" id="mis-offered-sub">All channels WK14</div>
+        </div>
+        <div class="card red">
+          <div class="card-label">Total Missed</div>
+          <div class="card-value" id="mis-total-missed">—</div>
+          <div class="card-sub" id="mis-missed-sub">All channels WK14</div>
+        </div>
+        <div class="card orange">
+          <div class="card-label">Overall Missed%</div>
+          <div class="card-value" id="mis-overall-pct">—</div>
+          <div class="card-sub">Team average</div>
+        </div>
+        <div class="card green">
+          <div class="card-label">Zero Missed</div>
+          <div class="card-value" id="mis-zero-count">—</div>
+          <div class="card-sub">Associates at 0%</div>
+        </div>
+        <div class="card orange">
+          <div class="card-label">Weekly Deductions</div>
+          <div class="card-value" id="mis-minus-score">—</div>
+          <div class="card-sub" id="mis-minus-sub">This week</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>📞</span> Missed Contacts by Associate — <span id="missed-section-week">WK14</span></div>
+        <div class="legend">
+          <div class="legend-item"><span class="dot dot-green"></span> 0% missed</div>
+          <div class="legend-item"><span class="dot dot-red"></span> &gt;5% missed</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Associate</th>
+              <th>Overall Offered</th>
+              <th>Overall Missed</th>
+              <th>Chat Missed%</th>
+              <th>WI Missed%</th>
+              <th>Overall Missed%</th>
+            </tr>
+          </thead>
+          <tbody id="missed-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REMAP AUDIT TAB -->
+    <div id="tab-remap" class="tab-panel">
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <label style="font-weight:600;color:#555;font-size:0.9rem;">Select Week:</label>
+        <select id="remap-week-select" onchange="renderRemap()" style="padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-size:0.9rem;">
+          <option value="WK15">2026 WK15 (Current)</option>
+          <option value="WK14">2026 WK14</option>
+          <option value="WK13">2026 WK13</option>
+          <option value="WK12">2026 WK12</option>
+          <option value="WK11">2026 WK11</option>
+          <option value="WK10">2026 WK10</option>
+          <option value="WK09">2026 WK09</option>
+          <option value="WK08">2026 WK08</option>
+          <option value="WK07">2026 WK07</option>
+          <option value="WK06">2026 WK06</option>
+          <option value="WK05">2026 WK05</option>
+          <option value="WK04">2026 WK04</option>
+          <option value="WK03">2026 WK03</option>
+        </select>
+      </div>
+
+      <div class="summary-grid" id="remap-summary-cards"></div>
+
+      <div class="section">
+        <div class="section-title"><span>🔍</span> <span id="remap-section-title">Remap Audit by Associate — WK15</span></div>
+        <div class="legend">
+          <div class="legend-item"><span class="dot dot-green"></span> 100% Accuracy</div>
+          <div class="legend-item"><span class="dot dot-red"></span> Below 100%</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Associate</th>
+              <th>Audit Count</th>
+              <th>Fail Count</th>
+              <th>Accuracy%</th>
+            </tr>
+          </thead>
+          <tbody id="remap-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MONTHLY DATA TAB -->
+    <div id="tab-monthly" class="tab-panel">
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <label style="font-weight:600;color:#555;font-size:0.9rem;">Select Month:</label>
+        <select id="month-select" onchange="renderMonthly()" style="padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-size:0.9rem;">
+          <option value="jan">January 2026</option>
+          <option value="feb">February 2026</option>
+          <option value="mar">March 2026</option>
+        </select>
+      </div>
+      <div class="summary-grid" id="monthly-summary-cards"></div>
+
+      <div class="section" id="monthly-ranking-section" style="margin-bottom:24px;"></div>
+
+      <div class="section">
+        <div class="section-title"><span>📅</span> <span id="monthly-section-title">Missed Contacts by Associate — January 2026</span></div>
+        <div class="legend">
+          <div class="legend-item"><span class="dot dot-green"></span> Live &lt;2%</div>
+          <div class="legend-item"><span class="dot dot-yellow"></span> Live 2% – 5%</div>
+          <div class="legend-item"><span class="dot dot-red"></span> Live &gt;5%</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Associate</th>
+              <th>Overall Offered</th>
+              <th>Overall Missed</th>
+              <th>Chat Offered</th>
+              <th>Chat Missed</th>
+              <th>Chat Missed%</th>
+              <th>WI Offered</th>
+              <th>WI Missed</th>
+              <th>WI Missed%</th>
+              <th>Overall Missed%</th>
+            </tr>
+          </thead>
+          <tbody id="monthly-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>⏰</span> <span id="monthly-late-title">Late / NCNS by Associate — January 2026</span></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Associate</th>
+              <th>Late Count</th>
+              <th>Total Late Mins</th>
+              <th>NCNS</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="monthly-late-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span>🔍</span> <span id="monthly-remap-title">Remap Audit by Associate — January 2026</span></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Associate</th>
+              <th>Audit Count</th>
+              <th>Fail Count</th>
+              <th>Accuracy%</th>
+            </tr>
+          </thead>
+          <tbody id="monthly-remap-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- INDIVIDUAL TAB -->
+    <div id="tab-individual" class="tab-panel">
+      <div class="section">
+        <div class="section-title"><span>👤</span> Individual Detail</div>
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-weight:600;color:#555;font-size:0.9rem;">Associate:</label>
+            <select id="assoc-select" onchange="renderIndividual()" style="padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-size:0.9rem;"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-weight:600;color:#555;font-size:0.9rem;">Week:</label>
+            <select id="indiv-week-select" onchange="renderIndividual()" style="padding:8px 14px;border-radius:8px;border:1px solid #ddd;font-size:0.9rem;">
+              <option value="WK15">2026 WK15 (Current)</option>
+              <option value="WK14">2026 WK14</option>
+              <option value="WK13">2026 WK13</option>
+              <option value="WK12">2026 WK12</option>
+              <option value="WK11">2026 WK11</option>
+              <option value="WK10">2026 WK10</option>
+              <option value="WK09">2026 WK09</option>
+              <option value="WK08">2026 WK08</option>
+              <option value="WK07">2026 WK07</option>
+              <option value="WK06">2026 WK06</option>
+              <option value="WK05">2026 WK05</option>
+              <option value="WK04">2026 WK04</option>
+              <option value="WK03">2026 WK03</option>
+              <option value="WK02">2026 WK02</option>
+              <option value="WK01">2026 WK01</option>
+            </select>
+          </div>
+        </div>
+        <div id="individual-content"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ── Minus Score Data ─────────────────────────────────────
+const minusScoreData = [
+  { wk:'WK01', login:'nbzhu',    type:'Late', score:0.1 },
+  { wk:'WK05', login:'yingzi',   type:'Miss', score:0.1 },
+  { wk:'WK09', login:'qdengyu',  type:'Late', score:0.1 },
+  { wk:'WK13', login:'zengyuwe', type:'Late', score:0.1 },
+  { wk:'WK14', login:'zengyuwe', type:'Late', score:0.1 },
+  { wk:'WK14', login:'alpengyu', type:'Miss', score:0.1 },
+];
+
+function renderMinusScores(week) {
+  const filtered = minusScoreData.filter(d => d.wk === week);
+  const weekTotal = filtered.reduce((s, d) => s + d.score, 0);
+  document.getElementById('ov-minus-score').textContent = weekTotal > 0 ? '-' + weekTotal.toFixed(1) : '0';
+  const names = [...new Set(filtered.map(d => d.login))];
+  document.getElementById('ov-minus-sub').textContent = names.length > 0 ? names.join(', ') : 'No deductions';
+}
+
+// ── Password ──────────────────────────────────────────────
+function checkPw() {
+  const val = document.getElementById('pw-input').value;
+  if (val === 'yhaamz2026') {
+    document.getElementById('password-screen').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    initDashboard();
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+  }
+}
+
+// ── Tab Navigation ────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Monthly Data (March 2026) ────────────────────────────
+const monthlyDataMar = [
+  { id:'alpengyu',  offered:407,  missed:7,  pct:'1.72%', chatOff:47,  chatMiss:4,  chatPct:'8.51%',  voiceOff:0,  voiceMiss:0, wiOff:360, wiMiss:3,  wiPct:'0.83%',  live:'8.51%'  },
+  { id:'congmeiw',  offered:404,  missed:4,  pct:'0.99%', chatOff:150, chatMiss:1,  chatPct:'0.67%',  voiceOff:0,  voiceMiss:0, wiOff:254, wiMiss:3,  wiPct:'1.18%',  live:'0.67%'  },
+  { id:'dechua',    offered:331,  missed:18, pct:'5.44%', chatOff:89,  chatMiss:7,  chatPct:'7.87%',  voiceOff:0,  voiceMiss:0, wiOff:242, wiMiss:11, wiPct:'4.55%',  live:'7.87%'  },
+  { id:'jingcili',  offered:497,  missed:8,  pct:'1.61%', chatOff:232, chatMiss:8,  chatPct:'3.45%',  voiceOff:0,  voiceMiss:0, wiOff:265, wiMiss:0,  wiPct:'0.00%',  live:'3.45%'  },
+  { id:'mengtint',  offered:608,  missed:1,  pct:'0.16%', chatOff:138, chatMiss:1,  chatPct:'0.72%',  voiceOff:0,  voiceMiss:0, wiOff:470, wiMiss:0,  wiPct:'0.00%',  live:'0.72%'  },
+  { id:'nbzhu',     offered:418,  missed:2,  pct:'0.48%', chatOff:59,  chatMiss:2,  chatPct:'3.39%',  voiceOff:0,  voiceMiss:0, wiOff:359, wiMiss:0,  wiPct:'0.00%',  live:'3.39%'  },
+  { id:'oyuwzhan',  offered:552,  missed:7,  pct:'1.27%', chatOff:294, chatMiss:6,  chatPct:'2.04%',  voiceOff:32, voiceMiss:0, wiOff:226, wiMiss:1,  wiPct:'0.44%',  live:'1.84%'  },
+  { id:'qdengyu',   offered:515,  missed:5,  pct:'0.97%', chatOff:379, chatMiss:5,  chatPct:'1.32%',  voiceOff:0,  voiceMiss:0, wiOff:136, wiMiss:0,  wiPct:'0.00%',  live:'1.32%'  },
+  { id:'qlx',       offered:537,  missed:6,  pct:'1.12%', chatOff:118, chatMiss:3,  chatPct:'2.54%',  voiceOff:0,  voiceMiss:0, wiOff:419, wiMiss:3,  wiPct:'0.72%',  live:'2.54%'  },
+  { id:'sichengc',  offered:577,  missed:6,  pct:'1.04%', chatOff:99,  chatMiss:6,  chatPct:'6.06%',  voiceOff:0,  voiceMiss:0, wiOff:478, wiMiss:0,  wiPct:'0.00%',  live:'6.06%'  },
+  { id:'wyyizhen',  offered:556,  missed:2,  pct:'0.36%', chatOff:70,  chatMiss:1,  chatPct:'1.43%',  voiceOff:0,  voiceMiss:0, wiOff:486, wiMiss:1,  wiPct:'0.21%',  live:'1.43%'  },
+  { id:'xiaoxiyu',  offered:459,  missed:2,  pct:'0.44%', chatOff:109, chatMiss:2,  chatPct:'1.83%',  voiceOff:3,  voiceMiss:0, wiOff:347, wiMiss:0,  wiPct:'0.00%',  live:'1.79%'  },
+  { id:'xuelizhx',  offered:621,  missed:2,  pct:'0.32%', chatOff:122, chatMiss:0,  chatPct:'0.00%',  voiceOff:2,  voiceMiss:0, wiOff:497, wiMiss:2,  wiPct:'0.40%',  live:'0.00%'  },
+  { id:'yangasen',  offered:569,  missed:7,  pct:'1.23%', chatOff:174, chatMiss:3,  chatPct:'1.72%',  voiceOff:0,  voiceMiss:0, wiOff:395, wiMiss:4,  wiPct:'1.01%',  live:'1.72%'  },
+  { id:'yanghaia',  offered:669,  missed:6,  pct:'0.90%', chatOff:121, chatMiss:4,  chatPct:'3.31%',  voiceOff:0,  voiceMiss:0, wiOff:548, wiMiss:2,  wiPct:'0.36%',  live:'3.31%'  },
+  { id:'yifliang',  offered:523,  missed:1,  pct:'0.19%', chatOff:8,   chatMiss:0,  chatPct:'0.00%',  voiceOff:0,  voiceMiss:0, wiOff:515, wiMiss:1,  wiPct:'0.19%',  live:'0.00%'  },
+  { id:'yilinlid',  offered:589,  missed:9,  pct:'1.53%', chatOff:201, chatMiss:7,  chatPct:'3.48%',  voiceOff:1,  voiceMiss:0, wiOff:387, wiMiss:2,  wiPct:'0.52%',  live:'3.47%'  },
+  { id:'yingzi',    offered:553,  missed:8,  pct:'1.45%', chatOff:87,  chatMiss:2,  chatPct:'2.30%',  voiceOff:0,  voiceMiss:0, wiOff:466, wiMiss:6,  wiPct:'1.29%',  live:'2.30%'  },
+  { id:'yiniwe',    offered:577,  missed:3,  pct:'0.52%', chatOff:72,  chatMiss:2,  chatPct:'2.78%',  voiceOff:0,  voiceMiss:0, wiOff:505, wiMiss:1,  wiPct:'0.20%',  live:'2.78%'  },
+  { id:'zengyhs',   offered:665,  missed:4,  pct:'0.60%', chatOff:70,  chatMiss:1,  chatPct:'1.43%',  voiceOff:0,  voiceMiss:0, wiOff:595, wiMiss:3,  wiPct:'0.50%',  live:'1.43%'  },
+  { id:'zengyuwe',  offered:545,  missed:3,  pct:'0.55%', chatOff:314, chatMiss:3,  chatPct:'0.96%',  voiceOff:2,  voiceMiss:0, wiOff:229, wiMiss:0,  wiPct:'0.00%',  live:'0.95%'  },
+  { id:'zhangzxi',  offered:563,  missed:4,  pct:'0.71%', chatOff:196, chatMiss:3,  chatPct:'1.53%',  voiceOff:0,  voiceMiss:0, wiOff:367, wiMiss:1,  wiPct:'0.27%',  live:'1.53%'  },
+  { id:'zhilranf',  offered:668,  missed:4,  pct:'0.60%', chatOff:76,  chatMiss:2,  chatPct:'2.63%',  voiceOff:0,  voiceMiss:0, wiOff:592, wiMiss:2,  wiPct:'0.34%',  live:'2.63%'  },
+  { id:'zhoyifan',  offered:321,  missed:23, pct:'7.17%', chatOff:94,  chatMiss:20, chatPct:'21.28%', voiceOff:0,  voiceMiss:0, wiOff:227, wiMiss:3,  wiPct:'1.32%',  live:'21.28%' },
+  { id:'zxinyan',   offered:760,  missed:3,  pct:'0.39%', chatOff:138, chatMiss:1,  chatPct:'0.72%',  voiceOff:0,  voiceMiss:0, wiOff:622, wiMiss:2,  wiPct:'0.32%',  live:'0.72%'  },
+];
+
+// ── Monthly Data (February 2026) ─────────────────────────
+const monthlyDataFeb = [
+  { id:'alpengyu',  offered:206,  missed:1,  pct:'0.49%', chatOff:11,  chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:195, wiMiss:1,  wiPct:'0.51%',  live:'0.00%' },
+  { id:'congmeiw',  offered:327,  missed:1,  pct:'0.31%', chatOff:37,  chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:290, wiMiss:1,  wiPct:'0.34%',  live:'0.00%' },
+  { id:'dechua',    offered:316,  missed:2,  pct:'0.63%', chatOff:26,  chatMiss:1, chatPct:'3.85%', voiceOff:0, voiceMiss:0, wiOff:290, wiMiss:1,  wiPct:'0.34%',  live:'3.85%' },
+  { id:'jingcili',  offered:400,  missed:1,  pct:'0.25%', chatOff:149, chatMiss:1, chatPct:'0.67%', voiceOff:0, voiceMiss:0, wiOff:251, wiMiss:0,  wiPct:'0.00%',  live:'0.67%' },
+  { id:'mengtint',  offered:439,  missed:3,  pct:'0.68%', chatOff:32,  chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:407, wiMiss:3,  wiPct:'0.74%',  live:'0.00%' },
+  { id:'nbzhu',     offered:300,  missed:1,  pct:'0.33%', chatOff:47,  chatMiss:1, chatPct:'2.13%', voiceOff:0, voiceMiss:0, wiOff:253, wiMiss:0,  wiPct:'0.00%',  live:'2.13%' },
+  { id:'oyuwzhan',  offered:382,  missed:3,  pct:'0.79%', chatOff:167, chatMiss:3, chatPct:'1.80%', voiceOff:0, voiceMiss:0, wiOff:215, wiMiss:0,  wiPct:'0.00%',  live:'1.80%' },
+  { id:'qdengyu',   offered:309,  missed:1,  pct:'0.32%', chatOff:187, chatMiss:1, chatPct:'0.53%', voiceOff:0, voiceMiss:0, wiOff:122, wiMiss:0,  wiPct:'0.00%',  live:'0.53%' },
+  { id:'qlx',       offered:320,  missed:1,  pct:'0.31%', chatOff:12,  chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:308, wiMiss:1,  wiPct:'0.32%',  live:'0.00%' },
+  { id:'sichengc',  offered:372,  missed:3,  pct:'0.81%', chatOff:45,  chatMiss:2, chatPct:'4.44%', voiceOff:1, voiceMiss:0, wiOff:326, wiMiss:1,  wiPct:'0.31%',  live:'4.35%' },
+  { id:'wyyizhen',  offered:415,  missed:10, pct:'2.41%', chatOff:5,   chatMiss:1, chatPct:'20.00%',voiceOff:0, voiceMiss:0, wiOff:410, wiMiss:9,  wiPct:'2.20%',  live:'20.00%'},
+  { id:'xiaoxiyu',  offered:364,  missed:4,  pct:'1.10%', chatOff:59,  chatMiss:2, chatPct:'3.39%', voiceOff:0, voiceMiss:0, wiOff:305, wiMiss:2,  wiPct:'0.66%',  live:'3.39%' },
+  { id:'xuelizhx',  offered:394,  missed:2,  pct:'0.51%', chatOff:73,  chatMiss:2, chatPct:'2.74%', voiceOff:0, voiceMiss:0, wiOff:321, wiMiss:0,  wiPct:'0.00%',  live:'2.74%' },
+  { id:'yangasen',  offered:419,  missed:5,  pct:'1.19%', chatOff:75,  chatMiss:2, chatPct:'2.67%', voiceOff:0, voiceMiss:0, wiOff:344, wiMiss:3,  wiPct:'0.87%',  live:'2.67%' },
+  { id:'yanghaia',  offered:316,  missed:0,  pct:'0.00%', chatOff:53,  chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:263, wiMiss:0,  wiPct:'0.00%',  live:'0.00%' },
+  { id:'yifliang',  offered:389,  missed:3,  pct:'0.77%', chatOff:100, chatMiss:3, chatPct:'3.00%', voiceOff:0, voiceMiss:0, wiOff:289, wiMiss:0,  wiPct:'0.00%',  live:'3.00%' },
+  { id:'yilinlid',  offered:415,  missed:4,  pct:'0.96%', chatOff:11,  chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:404, wiMiss:4,  wiPct:'0.99%',  live:'0.00%' },
+  { id:'yingzi',    offered:402,  missed:19, pct:'4.73%', chatOff:77,  chatMiss:1, chatPct:'1.30%', voiceOff:0, voiceMiss:0, wiOff:325, wiMiss:18, wiPct:'5.54%',  live:'1.30%' },
+  { id:'yiniwe',    offered:430,  missed:2,  pct:'0.47%', chatOff:63,  chatMiss:1, chatPct:'1.59%', voiceOff:0, voiceMiss:0, wiOff:367, wiMiss:1,  wiPct:'0.27%',  live:'1.59%' },
+  { id:'zengyhs',   offered:382,  missed:0,  pct:'0.00%', chatOff:12,  chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:370, wiMiss:0,  wiPct:'0.00%',  live:'0.00%' },
+  { id:'zengyuwe',  offered:345,  missed:3,  pct:'0.87%', chatOff:164, chatMiss:3, chatPct:'1.83%', voiceOff:0, voiceMiss:0, wiOff:181, wiMiss:0,  wiPct:'0.00%',  live:'1.83%' },
+  { id:'zhangzxi',  offered:306,  missed:0,  pct:'0.00%', chatOff:102, chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:204, wiMiss:0,  wiPct:'0.00%',  live:'0.00%' },
+  { id:'zhilranf',  offered:366,  missed:5,  pct:'1.37%', chatOff:63,  chatMiss:1, chatPct:'1.59%', voiceOff:0, voiceMiss:0, wiOff:303, wiMiss:4,  wiPct:'1.32%',  live:'1.59%' },
+  { id:'zhoyifan',  offered:430,  missed:6,  pct:'1.40%', chatOff:101, chatMiss:3, chatPct:'2.97%', voiceOff:0, voiceMiss:0, wiOff:329, wiMiss:3,  wiPct:'0.91%',  live:'2.97%' },
+  { id:'zxinyan',   offered:384,  missed:2,  pct:'0.52%', chatOff:33,  chatMiss:0, chatPct:'0.00%', voiceOff:0, voiceMiss:0, wiOff:351, wiMiss:2,  wiPct:'0.57%',  live:'0.00%' },
+];
+
+// ── Monthly Data (January 2026) ───────────────────────────
+const monthlyData = [
+  { id:'alpengyu', offered:811,  missed:8,  pct:'0.99%', chatOff:39,  chatMiss:5,  chatPct:'12.82%', voiceOff:0, voiceMiss:0, wiOff:772, wiMiss:3,  wiPct:'0.39%',  live:'12.82%' },
+  { id:'congmeiw', offered:535,  missed:9,  pct:'1.68%', chatOff:173, chatMiss:4,  chatPct:'2.31%',  voiceOff:0, voiceMiss:0, wiOff:362, wiMiss:5,  wiPct:'1.38%',  live:'2.31%'  },
+  { id:'dechua',   offered:434,  missed:10, pct:'2.30%', chatOff:59,  chatMiss:6,  chatPct:'10.17%', voiceOff:0, voiceMiss:0, wiOff:375, wiMiss:4,  wiPct:'1.07%',  live:'10.17%' },
+  { id:'jingcili', offered:558,  missed:5,  pct:'0.90%', chatOff:251, chatMiss:4,  chatPct:'1.59%',  voiceOff:0, voiceMiss:0, wiOff:307, wiMiss:1,  wiPct:'0.33%',  live:'1.59%'  },
+  { id:'mengtint', offered:598,  missed:3,  pct:'0.50%', chatOff:185, chatMiss:2,  chatPct:'1.08%',  voiceOff:0, voiceMiss:0, wiOff:413, wiMiss:1,  wiPct:'0.24%',  live:'1.08%'  },
+  { id:'nbzhu',    offered:442,  missed:1,  pct:'0.23%', chatOff:70,  chatMiss:1,  chatPct:'1.43%',  voiceOff:0, voiceMiss:0, wiOff:372, wiMiss:0,  wiPct:'0.00%',  live:'1.43%'  },
+  { id:'oyuwzhan', offered:382,  missed:7,  pct:'1.83%', chatOff:138, chatMiss:2,  chatPct:'1.45%',  voiceOff:0, voiceMiss:0, wiOff:244, wiMiss:5,  wiPct:'2.05%',  live:'1.45%'  },
+  { id:'qdengyu',  offered:265,  missed:4,  pct:'1.51%', chatOff:186, chatMiss:4,  chatPct:'2.15%',  voiceOff:0, voiceMiss:0, wiOff:79,  wiMiss:0,  wiPct:'0.00%',  live:'2.15%'  },
+  { id:'qlx',      offered:640,  missed:5,  pct:'0.78%', chatOff:126, chatMiss:4,  chatPct:'3.17%',  voiceOff:0, voiceMiss:0, wiOff:514, wiMiss:1,  wiPct:'0.19%',  live:'3.17%'  },
+  { id:'sichengc', offered:556,  missed:5,  pct:'0.90%', chatOff:72,  chatMiss:1,  chatPct:'1.39%',  voiceOff:0, voiceMiss:0, wiOff:484, wiMiss:4,  wiPct:'0.83%',  live:'1.39%'  },
+  { id:'wyyizhen', offered:596,  missed:6,  pct:'1.01%', chatOff:49,  chatMiss:1,  chatPct:'2.04%',  voiceOff:0, voiceMiss:0, wiOff:547, wiMiss:5,  wiPct:'0.91%',  live:'2.04%'  },
+  { id:'xiaoxiyu', offered:428,  missed:7,  pct:'1.64%', chatOff:80,  chatMiss:4,  chatPct:'5.00%',  voiceOff:0, voiceMiss:0, wiOff:348, wiMiss:3,  wiPct:'0.86%',  live:'5.00%'  },
+  { id:'xuelizhx', offered:639,  missed:1,  pct:'0.16%', chatOff:67,  chatMiss:1,  chatPct:'1.49%',  voiceOff:0, voiceMiss:0, wiOff:572, wiMiss:0,  wiPct:'0.00%',  live:'1.49%'  },
+  { id:'yangasen', offered:698,  missed:9,  pct:'1.29%', chatOff:196, chatMiss:3,  chatPct:'1.53%',  voiceOff:0, voiceMiss:0, wiOff:502, wiMiss:6,  wiPct:'1.20%',  live:'1.53%'  },
+  { id:'yanghaia', offered:536,  missed:3,  pct:'0.56%', chatOff:99,  chatMiss:1,  chatPct:'1.01%',  voiceOff:0, voiceMiss:0, wiOff:437, wiMiss:2,  wiPct:'0.46%',  live:'1.01%'  },
+  { id:'yifliang', offered:607,  missed:2,  pct:'0.33%', chatOff:99,  chatMiss:0,  chatPct:'0.00%',  voiceOff:0, voiceMiss:0, wiOff:508, wiMiss:2,  wiPct:'0.39%',  live:'0.00%'  },
+  { id:'yilinlid', offered:555,  missed:3,  pct:'0.54%', chatOff:80,  chatMiss:1,  chatPct:'1.25%',  voiceOff:0, voiceMiss:0, wiOff:475, wiMiss:2,  wiPct:'0.42%',  live:'1.25%'  },
+  { id:'yingzi',   offered:386,  missed:10, pct:'2.59%', chatOff:51,  chatMiss:6,  chatPct:'11.76%', voiceOff:0, voiceMiss:0, wiOff:335, wiMiss:4,  wiPct:'1.19%',  live:'11.76%' },
+  { id:'yiniwe',   offered:566,  missed:2,  pct:'0.35%', chatOff:52,  chatMiss:2,  chatPct:'3.85%',  voiceOff:0, voiceMiss:0, wiOff:514, wiMiss:0,  wiPct:'0.00%',  live:'3.85%'  },
+  { id:'zengyhs',  offered:358,  missed:2,  pct:'0.56%', chatOff:11,  chatMiss:0,  chatPct:'0.00%',  voiceOff:0, voiceMiss:0, wiOff:347, wiMiss:2,  wiPct:'0.58%',  live:'0.00%'  },
+  { id:'zengyuwe', offered:583,  missed:5,  pct:'0.86%', chatOff:252, chatMiss:3,  chatPct:'1.19%',  voiceOff:0, voiceMiss:0, wiOff:331, wiMiss:2,  wiPct:'0.60%',  live:'1.19%'  },
+  { id:'zhangzxi', offered:468,  missed:6,  pct:'1.28%', chatOff:128, chatMiss:4,  chatPct:'3.13%',  voiceOff:0, voiceMiss:0, wiOff:340, wiMiss:2,  wiPct:'0.59%',  live:'3.13%'  },
+  { id:'zhilranf', offered:500,  missed:2,  pct:'0.40%', chatOff:43,  chatMiss:0,  chatPct:'0.00%',  voiceOff:0, voiceMiss:0, wiOff:457, wiMiss:2,  wiPct:'0.44%',  live:'0.00%'  },
+  { id:'zhoyifan', offered:713,  missed:6,  pct:'0.84%', chatOff:133, chatMiss:2,  chatPct:'1.50%',  voiceOff:0, voiceMiss:0, wiOff:580, wiMiss:4,  wiPct:'0.69%',  live:'1.50%'  },
+  { id:'zxinyan',  offered:223,  missed:3,  pct:'1.35%', chatOff:41,  chatMiss:3,  chatPct:'7.32%',  voiceOff:0, voiceMiss:0, wiOff:182, wiMiss:0,  wiPct:'0.00%',  live:'7.32%'  },
+];
+
+// ── Historical Late / NCNS Data (from uploaded records) ──
+// ── Weekly Missed Contact Historical Data (WK01-WK13) ──
+const weeklyMissedData = {
+  "WK01": [
+    { id:"qlx",      offered:79,  missed:1,  pct:"1.27%", chat:"0%",    voice:"",      wi:"1.27%",  live:"0%" },
+    { id:"zxinyan",  offered:85,  missed:1,  pct:"1.18%", chat:"0%",    voice:"",      wi:"1.18%",  live:"0%" },
+    { id:"yanghaia", offered:120, missed:1,  pct:"0.83%", chat:"2.44%", voice:"",      wi:"0%",     live:"2.44%" },
+    { id:"yifliang", offered:44,  missed:1,  pct:"2.27%", chat:"0%",    voice:"",      wi:"2.27%",  live:"0%" },
+    { id:"yilinlid", offered:89,  missed:1,  pct:"1.12%", chat:"0%",    voice:"",      wi:"1.12%",  live:"0%" },
+    { id:"yangasen", offered:54,  missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"alpengyu", offered:228, missed:3,  pct:"1.32%", chat:"0%",    voice:"",      wi:"1.32%",  live:"0%" },
+    { id:"zhoyifan", offered:136, missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"zengyuwe", offered:101, missed:6,  pct:"5.94%", chat:"0%",    voice:"",      wi:"7.69%",  live:"0%" },
+    { id:"jingcili", offered:184, missed:1,  pct:"0.54%", chat:"0%",    voice:"",      wi:"0.54%",  live:"0%" },
+    { id:"congmeiw", offered:66,  missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"zhangzxi", offered:52,  missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"zengyhs",  offered:51,  missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"xiaoxiyu", offered:104, missed:1,  pct:"0.96%", chat:"0%",    voice:"",      wi:"0.96%",  live:"0%" },
+    { id:"mengtint", offered:0,   missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"xuelizhx", offered:0,   missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"zhilranf", offered:84,  missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"wyyizhen", offered:0,   missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"yiniwe",   offered:34,  missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"sichengc", offered:117, missed:1,  pct:"0.85%", chat:"0%",    voice:"",      wi:"0.85%",  live:"0%" },
+    { id:"oyuwzhan", offered:12,  missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"dechua",   offered:70,  missed:1,  pct:"1.43%", chat:"0%",    voice:"",      wi:"1.61%",  live:"0%" },
+    { id:"nbzhu",    offered:77,  missed:0,  pct:"0%",    chat:"0%",    voice:"",      wi:"0%",     live:"0%" },
+    { id:"yingzi",   offered:72,  missed:2,  pct:"2.78%", chat:"0%",    voice:"",      wi:"3.70%",  live:"0%" },
+    { id:"qdengyu",  offered:14,  missed:1,  pct:"7.14%", chat:"0%",    voice:"",      wi:"7.14%",  live:"0%" },
+  ],
+  "WK02": [
+    { id:"alpengyu", offered:56,  missed:0,  pct:"0.00%", chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"congmeiw", offered:128, missed:2,  pct:"1.56%", chat:"2.53%",  voice:"", wi:"0.00%",  live:"2.53%" },
+    { id:"dechua",   offered:150, missed:1,  pct:"0.67%", chat:"",       voice:"", wi:"0.67%",  live:"" },
+    { id:"jingcili", offered:81,  missed:0,  pct:"0.00%", chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"mengtint", offered:214, missed:2,  pct:"0.93%", chat:"1.04%",  voice:"", wi:"0.85%",  live:"1.04%" },
+    { id:"nbzhu",    offered:162, missed:1,  pct:"0.62%", chat:"3.70%",  voice:"", wi:"0.00%",  live:"3.70%" },
+    { id:"oyuwzhan", offered:68,  missed:2,  pct:"2.94%", chat:"",       voice:"", wi:"2.94%",  live:"" },
+    { id:"qdengyu",  offered:46,  missed:0,  pct:"0.00%", chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"qlx",      offered:219, missed:4,  pct:"1.83%", chat:"5.00%",  voice:"", wi:"0.00%",  live:"5.00%" },
+    { id:"sichengc", offered:109, missed:1,  pct:"0.92%", chat:"0.00%",  voice:"", wi:"1.12%",  live:"0.00%" },
+    { id:"wyyizhen", offered:158, missed:1,  pct:"0.63%", chat:"0.00%",  voice:"", wi:"0.65%",  live:"0.00%" },
+    { id:"xuelizhx", offered:217, missed:0,  pct:"0.00%", chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yangasen", offered:231, missed:1,  pct:"0.43%", chat:"0.00%",  voice:"", wi:"0.72%",  live:"0.00%" },
+    { id:"yanghaia", offered:161, missed:0,  pct:"0.00%", chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yifliang", offered:148, missed:0,  pct:"0.00%", chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yilinlid", offered:88,  missed:0,  pct:"0.00%", chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yingzi",   offered:134, missed:2,  pct:"1.49%", chat:"16.67%", voice:"", wi:"0.78%",  live:"16.67%" },
+    { id:"yiniwe",   offered:187, missed:0,  pct:"0.00%", chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyhs",  offered:190, missed:2,  pct:"1.05%", chat:"0.00%",  voice:"", wi:"1.06%",  live:"0.00%" },
+    { id:"zengyuwe", offered:153, missed:3,  pct:"1.96%", chat:"2.29%",  voice:"", wi:"0.00%",  live:"2.29%" },
+    { id:"zhangzxi", offered:153, missed:3,  pct:"1.96%", chat:"5.26%",  voice:"", wi:"0.00%",  live:"5.26%" },
+    { id:"zhilranf", offered:144, missed:1,  pct:"0.69%", chat:"0.00%",  voice:"", wi:"0.70%",  live:"0.00%" },
+    { id:"zhoyifan", offered:172, missed:1,  pct:"0.58%", chat:"0.00%",  voice:"", wi:"0.62%",  live:"0.00%" },
+    { id:"zxinyan",  offered:51,  missed:2,  pct:"3.92%", chat:"10.00%", voice:"", wi:"0.00%",  live:"10.00%" },
+  ],
+  "WK03": [
+    { id:"alpengyu", offered:226, missed:2,  pct:"0.88%",  chat:"28.57%", voice:"", wi:"0.00%",  live:"28.57%" },
+    { id:"congmeiw", offered:109, missed:2,  pct:"1.83%",  chat:"3.17%",  voice:"", wi:"0.00%",  live:"3.17%" },
+    { id:"dechua",   offered:97,  missed:5,  pct:"5.15%",  chat:"22.22%", voice:"", wi:"1.27%",  live:"22.22%" },
+    { id:"jingcili", offered:94,  missed:2,  pct:"2.13%",  chat:"3.03%",  voice:"", wi:"0.00%",  live:"3.03%" },
+    { id:"mengtint", offered:165, missed:1,  pct:"0.61%",  chat:"4.35%",  voice:"", wi:"0.00%",  live:"4.35%" },
+    { id:"nbzhu",    offered:49,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"oyuwzhan", offered:78,  missed:2,  pct:"2.56%",  chat:"",       voice:"", wi:"2.56%",  live:"" },
+    { id:"qdengyu",  offered:51,  missed:2,  pct:"3.92%",  chat:"4.55%",  voice:"", wi:"0.00%",  live:"4.55%" },
+    { id:"qlx",      offered:176, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"sichengc", offered:156, missed:1,  pct:"0.64%",  chat:"5.88%",  voice:"", wi:"0.00%",  live:"5.88%" },
+    { id:"wyyizhen", offered:116, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"xiaoxiyu", offered:127, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"xuelizhx", offered:129, missed:1,  pct:"0.78%",  chat:"2.38%",  voice:"", wi:"0.00%",  live:"2.38%" },
+    { id:"yangasen", offered:144, missed:3,  pct:"2.08%",  chat:"0.00%",  voice:"", wi:"2.42%",  live:"0.00%" },
+    { id:"yanghaia", offered:110, missed:2,  pct:"1.82%",  chat:"0.00%",  voice:"", wi:"3.33%",  live:"0.00%" },
+    { id:"yifliang", offered:128, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yilinlid", offered:165, missed:1,  pct:"0.61%",  chat:"16.67%", voice:"", wi:"0.00%",  live:"16.67%" },
+    { id:"yingzi",   offered:93,  missed:3,  pct:"3.23%",  chat:"10.00%", voice:"", wi:"1.37%",  live:"10.00%" },
+    { id:"yiniwe",   offered:143, missed:2,  pct:"1.40%",  chat:"5.41%",  voice:"", wi:"0.00%",  live:"5.41%" },
+    { id:"zengyhs",  offered:29,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zengyuwe", offered:106, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhangzxi", offered:68,  missed:1,  pct:"1.47%",  chat:"0.00%",  voice:"", wi:"1.64%",  live:"0.00%" },
+    { id:"zhilranf", offered:134, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhoyifan", offered:177, missed:2,  pct:"1.13%",  chat:"1.45%",  voice:"", wi:"0.93%",  live:"1.45%" },
+  ],
+  "WK04": [
+    { id:"alpengyu", offered:110, missed:3,  pct:"2.73%",  chat:"17.65%", voice:"", wi:"0.00%",  live:"17.65%" },
+    { id:"congmeiw", offered:142, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"dechua",   offered:78,  missed:2,  pct:"2.56%",  chat:"4.88%",  voice:"", wi:"0.00%",  live:"4.88%" },
+    { id:"jingcili", offered:132, missed:1,  pct:"0.76%",  chat:"1.82%",  voice:"", wi:"0.00%",  live:"1.82%" },
+    { id:"mengtint", offered:93,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"nbzhu",    offered:120, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"oyuwzhan", offered:103, missed:1,  pct:"0.97%",  chat:"1.18%",  voice:"", wi:"0.00%",  live:"1.18%" },
+    { id:"qdengyu",  offered:56,  missed:1,  pct:"1.79%",  chat:"1.96%",  voice:"", wi:"0.00%",  live:"1.96%" },
+    { id:"qlx",      offered:179, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"sichengc", offered:139, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"wyyizhen", offered:148, missed:1,  pct:"0.68%",  chat:"0.00%",  voice:"", wi:"0.70%",  live:"0.00%" },
+    { id:"xiaoxiyu", offered:118, missed:4,  pct:"3.39%",  chat:"7.84%",  voice:"", wi:"0.00%",  live:"7.84%" },
+    { id:"xuelizhx", offered:156, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yangasen", offered:199, missed:4,  pct:"2.01%",  chat:"4.11%",  voice:"", wi:"0.79%",  live:"4.11%" },
+    { id:"yanghaia", offered:72,  missed:1,  pct:"1.39%",  chat:"10.00%", voice:"", wi:"0.00%",  live:"10.00%" },
+    { id:"yifliang", offered:134, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yilinlid", offered:98,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yingzi",   offered:108, missed:3,  pct:"2.78%",  chat:"12.50%", voice:"", wi:"1.09%",  live:"12.50%" },
+    { id:"yiniwe",   offered:108, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zengyhs",  offered:64,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyuwe", offered:132, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhangzxi", offered:145, missed:1,  pct:"0.69%",  chat:"0.00%",  voice:"", wi:"0.73%",  live:"0.00%" },
+    { id:"zhilranf", offered:130, missed:1,  pct:"0.77%",  chat:"0.00%",  voice:"", wi:"0.81%",  live:"0.00%" },
+    { id:"zhoyifan", offered:208, missed:1,  pct:"0.48%",  chat:"0.00%",  voice:"", wi:"0.53%",  live:"0.00%" },
+  ],
+  "WK05": [
+    { id:"alpengyu", offered:327, missed:2,  pct:"0.61%",  chat:"0.00%",  voice:"", wi:"0.64%",  live:"0.00%" },
+    { id:"congmeiw", offered:154, missed:5,  pct:"3.25%",  chat:"",       voice:"", wi:"3.25%",  live:"" },
+    { id:"dechua",   offered:109, missed:2,  pct:"1.83%",  chat:"",       voice:"", wi:"1.83%",  live:"" },
+    { id:"jingcili", offered:159, missed:1,  pct:"0.63%",  chat:"1.72%",  voice:"", wi:"0.00%",  live:"1.72%" },
+    { id:"mengtint", offered:126, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"nbzhu",    offered:111, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"oyuwzhan", offered:133, missed:2,  pct:"1.50%",  chat:"1.89%",  voice:"", wi:"1.25%",  live:"1.89%" },
+    { id:"qdengyu",  offered:111, missed:1,  pct:"0.90%",  chat:"1.10%",  voice:"", wi:"0.00%",  live:"1.10%" },
+    { id:"qlx",      offered:66,  missed:1,  pct:"1.52%",  chat:"0.00%",  voice:"", wi:"2.04%",  live:"0.00%" },
+    { id:"sichengc", offered:135, missed:3,  pct:"2.22%",  chat:"0.00%",  voice:"", wi:"2.50%",  live:"0.00%" },
+    { id:"wyyizhen", offered:174, missed:4,  pct:"2.30%",  chat:"6.67%",  voice:"", wi:"1.89%",  live:"6.67%" },
+    { id:"xiaoxiyu", offered:145, missed:2,  pct:"1.38%",  chat:"0.00%",  voice:"", wi:"1.61%",  live:"0.00%" },
+    { id:"xuelizhx", offered:137, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yangasen", offered:124, missed:1,  pct:"0.81%",  chat:"0.00%",  voice:"", wi:"0.88%",  live:"0.00%" },
+    { id:"yanghaia", offered:152, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yifliang", offered:153, missed:1,  pct:"0.65%",  chat:"0.00%",  voice:"", wi:"0.79%",  live:"0.00%" },
+    { id:"yilinlid", offered:157, missed:1,  pct:"0.64%",  chat:"0.00%",  voice:"", wi:"0.66%",  live:"0.00%" },
+    { id:"yingzi",   offered:32,  missed:2,  pct:"6.25%",  chat:"11.11%", voice:"", wi:"4.35%",  live:"11.11%" },
+    { id:"yiniwe",   offered:94,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyhs",  offered:75,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyuwe", offered:170, missed:1,  pct:"0.59%",  chat:"",       voice:"", wi:"0.59%",  live:"" },
+    { id:"zhangzxi", offered:98,  missed:1,  pct:"1.02%",  chat:"1.79%",  voice:"", wi:"0.00%",  live:"1.79%" },
+    { id:"zhilranf", offered:89,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zhoyifan", offered:145, missed:2,  pct:"1.38%",  chat:"2.78%",  voice:"", wi:"0.92%",  live:"2.78%" },
+    { id:"zxinyan",  offered:144, missed:1,  pct:"0.69%",  chat:"4.76%",  voice:"", wi:"0.00%",  live:"4.76%" },
+  ],
+  "WK06": [
+    { id:"alpengyu", offered:169, missed:1,  pct:"0.59%",  chat:"0.00%",  voice:"", wi:"0.61%",  live:"0.00%" },
+    { id:"congmeiw", offered:83,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"dechua",   offered:162, missed:1,  pct:"0.62%",  chat:"",       voice:"", wi:"0.62%",  live:"" },
+    { id:"jingcili", offered:153, missed:1,  pct:"0.65%",  chat:"1.28%",  voice:"", wi:"0.00%",  live:"1.28%" },
+    { id:"mengtint", offered:196, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"nbzhu",    offered:110, missed:1,  pct:"0.91%",  chat:"2.86%",  voice:"", wi:"0.00%",  live:"2.86%" },
+    { id:"oyuwzhan", offered:199, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"qdengyu",  offered:114, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"sichengc", offered:94,  missed:3,  pct:"3.19%",  chat:"5.26%",  voice:"0.00%", wi:"1.82%",  live:"5.13%" },
+    { id:"wyyizhen", offered:156, missed:4,  pct:"2.56%",  chat:"33.33%", voice:"", wi:"1.96%",  live:"33.33%" },
+    { id:"xiaoxiyu", offered:117, missed:2,  pct:"1.71%",  chat:"3.39%",  voice:"", wi:"0.00%",  live:"3.39%" },
+    { id:"xuelizhx", offered:162, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yangasen", offered:143, missed:2,  pct:"1.40%",  chat:"3.23%",  voice:"", wi:"0.00%",  live:"3.23%" },
+    { id:"yanghaia", offered:138, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yifliang", offered:137, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yilinlid", offered:100, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yingzi",   offered:147, missed:6,  pct:"4.08%",  chat:"0.00%",  voice:"", wi:"4.20%",  live:"0.00%" },
+    { id:"yiniwe",   offered:124, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyhs",  offered:135, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyuwe", offered:118, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhangzxi", offered:132, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhilranf", offered:92,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhoyifan", offered:201, missed:1,  pct:"0.50%",  chat:"0.00%",  voice:"", wi:"0.53%",  live:"0.00%" },
+    { id:"zxinyan",  offered:158, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+  ],
+  "WK07": [
+    { id:"alpengyu", offered:4,   missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"congmeiw", offered:69,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"dechua",   offered:99,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"jingcili", offered:77,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"mengtint", offered:114, missed:1,  pct:"0.88%",  chat:"0.00%",  voice:"", wi:"0.92%",  live:"0.00%" },
+    { id:"nbzhu",    offered:72,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"oyuwzhan", offered:91,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"qdengyu",  offered:38,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"qlx",      offered:88,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"sichengc", offered:138, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"wyyizhen", offered:105, missed:4,  pct:"3.81%",  chat:"0.00%",  voice:"", wi:"3.88%",  live:"0.00%" },
+    { id:"xiaoxiyu", offered:108, missed:2,  pct:"1.85%",  chat:"",       voice:"", wi:"1.85%",  live:"" },
+    { id:"xuelizhx", offered:131, missed:1,  pct:"0.76%",  chat:"2.17%",  voice:"", wi:"0.00%",  live:"2.17%" },
+    { id:"yangasen", offered:119, missed:1,  pct:"0.84%",  chat:"0.00%",  voice:"", wi:"0.88%",  live:"0.00%" },
+    { id:"yanghaia", offered:28,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"yifliang", offered:92,  missed:2,  pct:"2.17%",  chat:"3.64%",  voice:"", wi:"0.00%",  live:"3.64%" },
+    { id:"yilinlid", offered:163, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yingzi",   offered:83,  missed:2,  pct:"2.41%",  chat:"2.78%",  voice:"", wi:"2.13%",  live:"2.78%" },
+    { id:"yiniwe",   offered:149, missed:1,  pct:"0.67%",  chat:"2.56%",  voice:"", wi:"0.00%",  live:"2.56%" },
+    { id:"zengyhs",  offered:118, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyuwe", offered:100, missed:3,  pct:"3.00%",  chat:"5.45%",  voice:"", wi:"0.00%",  live:"5.45%" },
+    { id:"zhangzxi", offered:103, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhilranf", offered:75,  missed:1,  pct:"1.33%",  chat:"0.00%",  voice:"", wi:"2.04%",  live:"0.00%" },
+    { id:"zhoyifan", offered:89,  missed:2,  pct:"2.25%",  chat:"1.92%",  voice:"", wi:"2.70%",  live:"1.92%" },
+    { id:"zxinyan",  offered:102, missed:2,  pct:"1.96%",  chat:"0.00%",  voice:"", wi:"2.00%",  live:"0.00%" },
+  ],
+  "WK08": [
+    { id:"alpengyu", offered:13,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"congmeiw", offered:47,  missed:1,  pct:"2.13%",  chat:"",       voice:"", wi:"2.13%",  live:"" },
+    { id:"jingcili", offered:23,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"mengtint", offered:17,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"nbzhu",    offered:21,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"qlx",      offered:41,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"sichengc", offered:11,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"wyyizhen", offered:53,  missed:2,  pct:"3.77%",  chat:"",       voice:"", wi:"3.77%",  live:"" },
+    { id:"xiaoxiyu", offered:29,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"xuelizhx", offered:19,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"yangasen", offered:19,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"yanghaia", offered:74,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"yifliang", offered:38,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"yingzi",   offered:61,  missed:2,  pct:"3.28%",  chat:"",       voice:"", wi:"3.28%",  live:"" },
+    { id:"yiniwe",   offered:52,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zengyhs",  offered:14,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zhangzxi", offered:47,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhilranf", offered:67,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zhoyifan", offered:38,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+  ],
+  "WK09": [
+    { id:"alpengyu", offered:20,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"congmeiw", offered:128, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"dechua",   offered:55,  missed:1,  pct:"1.82%",  chat:"3.85%",  voice:"", wi:"0.00%",  live:"3.85%" },
+    { id:"jingcili", offered:147, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"mengtint", offered:112, missed:2,  pct:"1.79%",  chat:"",       voice:"", wi:"1.79%",  live:"" },
+    { id:"nbzhu",    offered:97,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"oyuwzhan", offered:92,  missed:3,  pct:"3.26%",  chat:"4.76%",  voice:"", wi:"0.00%",  live:"4.76%" },
+    { id:"qdengyu",  offered:157, missed:1,  pct:"0.64%",  chat:"1.03%",  voice:"", wi:"0.00%",  live:"1.03%" },
+    { id:"qlx",      offered:191, missed:1,  pct:"0.52%",  chat:"0.00%",  voice:"", wi:"0.55%",  live:"0.00%" },
+    { id:"sichengc", offered:129, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"wyyizhen", offered:101, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"xiaoxiyu", offered:110, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"xuelizhx", offered:82,  missed:1,  pct:"1.22%",  chat:"4.55%",  voice:"", wi:"0.00%",  live:"4.55%" },
+    { id:"yangasen", offered:138, missed:2,  pct:"1.45%",  chat:"0.00%",  voice:"", wi:"1.54%",  live:"0.00%" },
+    { id:"yanghaia", offered:76,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yifliang", offered:122, missed:1,  pct:"0.82%",  chat:"2.56%",  voice:"", wi:"0.00%",  live:"2.56%" },
+    { id:"yilinlid", offered:152, missed:4,  pct:"2.63%",  chat:"0.00%",  voice:"", wi:"2.70%",  live:"0.00%" },
+    { id:"yingzi",   offered:111, missed:9,  pct:"8.11%",  chat:"0.00%",  voice:"", wi:"12.16%", live:"0.00%" },
+    { id:"yiniwe",   offered:105, missed:1,  pct:"0.95%",  chat:"0.00%",  voice:"", wi:"1.20%",  live:"0.00%" },
+    { id:"zengyhs",  offered:115, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyuwe", offered:127, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhangzxi", offered:24,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhilranf", offered:132, missed:4,  pct:"3.03%",  chat:"4.00%",  voice:"", wi:"2.80%",  live:"4.00%" },
+    { id:"zhoyifan", offered:102, missed:3,  pct:"2.94%",  chat:"5.71%",  voice:"", wi:"1.49%",  live:"5.71%" },
+    { id:"zxinyan",  offered:124, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+  ],
+  "WK10": [
+    { id:"alpengyu", offered:64,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"congmeiw", offered:72,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"dechua",   offered:75,  missed:3,  pct:"4.00%",  chat:"5.56%",  voice:"", wi:"3.51%",  live:"5.56%" },
+    { id:"jingcili", offered:81,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"mengtint", offered:164, missed:1,  pct:"0.61%",  chat:"2.63%",  voice:"", wi:"0.00%",  live:"2.63%" },
+    { id:"nbzhu",    offered:110, missed:2,  pct:"1.82%",  chat:"14.29%", voice:"", wi:"0.00%",  live:"14.29%" },
+    { id:"oyuwzhan", offered:151, missed:1,  pct:"0.66%",  chat:"1.20%",  voice:"", wi:"0.00%",  live:"1.20%" },
+    { id:"qdengyu",  offered:70,  missed:3,  pct:"4.29%",  chat:"5.17%",  voice:"", wi:"0.00%",  live:"5.17%" },
+    { id:"qlx",      offered:177, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"sichengc", offered:119, missed:1,  pct:"0.84%",  chat:"3.45%",  voice:"", wi:"0.00%",  live:"3.45%" },
+    { id:"wyyizhen", offered:110, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"xiaoxiyu", offered:95,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"xuelizhx", offered:150, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"yangasen", offered:147, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yanghaia", offered:150, missed:1,  pct:"0.67%",  chat:"",       voice:"", wi:"0.67%",  live:"" },
+    { id:"yifliang", offered:104, missed:1,  pct:"0.96%",  chat:"",       voice:"", wi:"0.96%",  live:"" },
+    { id:"yilinlid", offered:108, missed:2,  pct:"1.85%",  chat:"2.74%",  voice:"", wi:"0.00%",  live:"2.74%" },
+    { id:"yingzi",   offered:144, missed:2,  pct:"1.39%",  chat:"",       voice:"", wi:"1.39%",  live:"" },
+    { id:"yiniwe",   offered:143, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zengyhs",  offered:139, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zengyuwe", offered:82,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhangzxi", offered:112, missed:1,  pct:"0.89%",  chat:"1.43%",  voice:"", wi:"0.00%",  live:"1.43%" },
+    { id:"zhilranf", offered:105, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zhoyifan", offered:58,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zxinyan",  offered:194, missed:1,  pct:"0.52%",  chat:"1.75%",  voice:"", wi:"0.00%",  live:"1.75%" },
+  ],
+  "WK11": [
+    { id:"alpengyu", offered:49,  missed:2,  pct:"4.08%",  chat:"0.00%",  voice:"", wi:"4.44%",  live:"0.00%" },
+    { id:"congmeiw", offered:83,  missed:3,  pct:"3.61%",  chat:"",       voice:"", wi:"3.61%",  live:"" },
+    { id:"dechua",   offered:45,  missed:10, pct:"22.22%", chat:"8.70%",  voice:"", wi:"36.36%", live:"8.70%" },
+    { id:"jingcili", offered:119, missed:2,  pct:"1.68%",  chat:"2.53%",  voice:"", wi:"0.00%",  live:"2.53%" },
+    { id:"mengtint", offered:186, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"nbzhu",    offered:60,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"oyuwzhan", offered:107, missed:3,  pct:"2.80%",  chat:"3.45%",  voice:"", wi:"0.00%",  live:"3.45%" },
+    { id:"qdengyu",  offered:136, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"qlx",      offered:115, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"sichengc", offered:126, missed:1,  pct:"0.79%",  chat:"8.33%",  voice:"", wi:"0.00%",  live:"8.33%" },
+    { id:"wyyizhen", offered:123, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"xiaoxiyu", offered:96,  missed:1,  pct:"1.04%",  chat:"4.76%",  voice:"", wi:"0.00%",  live:"4.76%" },
+    { id:"xuelizhx", offered:153, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yangasen", offered:157, missed:2,  pct:"1.27%",  chat:"3.33%",  voice:"", wi:"0.79%",  live:"3.33%" },
+    { id:"yanghaia", offered:184, missed:2,  pct:"1.09%",  chat:"2.78%",  voice:"", wi:"0.68%",  live:"2.78%" },
+    { id:"yifliang", offered:137, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yilinlid", offered:121, missed:1,  pct:"0.83%",  chat:"0.00%",  voice:"", wi:"0.96%",  live:"0.00%" },
+    { id:"yingzi",   offered:223, missed:6,  pct:"2.69%",  chat:"9.09%",  voice:"", wi:"1.99%",  live:"9.09%" },
+    { id:"yiniwe",   offered:132, missed:1,  pct:"0.76%",  chat:"2.70%",  voice:"", wi:"0.00%",  live:"2.70%" },
+    { id:"zengyhs",  offered:132, missed:1,  pct:"0.76%",  chat:"0.00%",  voice:"", wi:"0.90%",  live:"0.00%" },
+    { id:"zengyuwe", offered:105, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhangzxi", offered:100, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"zhilranf", offered:169, missed:3,  pct:"1.78%",  chat:"4.08%",  voice:"", wi:"0.83%",  live:"4.08%" },
+    { id:"zhoyifan", offered:75,  missed:1,  pct:"1.33%",  chat:"2.44%",  voice:"", wi:"0.00%",  live:"2.44%" },
+    { id:"zxinyan",  offered:230, missed:1,  pct:"0.43%",  chat:"0.00%",  voice:"", wi:"0.54%",  live:"0.00%" },
+  ],
+  "WK12": [
+    { id:"alpengyu", offered:109, missed:1,  pct:"0.92%",  chat:"0.00%",  voice:"", wi:"1.01%",  live:"0.00%" },
+    { id:"congmeiw", offered:101, missed:1,  pct:"0.99%",  chat:"2.50%",  voice:"", wi:"0.00%",  live:"2.50%" },
+    { id:"dechua",   offered:73,  missed:4,  pct:"5.48%",  chat:"13.79%", voice:"", wi:"0.00%",  live:"13.79%" },
+    { id:"jingcili", offered:118, missed:1,  pct:"0.85%",  chat:"1.96%",  voice:"", wi:"0.00%",  live:"1.96%" },
+    { id:"mengtint", offered:121, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"nbzhu",    offered:87,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"oyuwzhan", offered:89,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"qdengyu",  offered:121, missed:2,  pct:"1.65%",  chat:"1.89%",  voice:"", wi:"0.00%",  live:"1.89%" },
+    { id:"qlx",      offered:79,  missed:5,  pct:"6.33%",  chat:"4.44%",  voice:"", wi:"8.82%",  live:"4.44%" },
+    { id:"sichengc", offered:124, missed:4,  pct:"3.23%",  chat:"8.33%",  voice:"", wi:"0.00%",  live:"8.33%" },
+    { id:"wyyizhen", offered:152, missed:1,  pct:"0.66%",  chat:"",       voice:"", wi:"0.66%",  live:"" },
+    { id:"xiaoxiyu", offered:123, missed:1,  pct:"0.81%",  chat:"3.70%",  voice:"", wi:"0.00%",  live:"3.70%" },
+    { id:"xuelizhx", offered:146, missed:1,  pct:"0.68%",  chat:"",       voice:"0.00%", wi:"0.69%",  live:"0.00%" },
+    { id:"yangasen", offered:149, missed:4,  pct:"2.68%",  chat:"2.41%",  voice:"", wi:"3.03%",  live:"2.41%" },
+    { id:"yanghaia", offered:155, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yifliang", offered:119, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"yilinlid", offered:113, missed:3,  pct:"2.65%",  chat:"4.92%",  voice:"", wi:"0.00%",  live:"4.92%" },
+    { id:"yingzi",   offered:81,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yiniwe",   offered:158, missed:1,  pct:"0.63%",  chat:"",       voice:"", wi:"0.63%",  live:"" },
+    { id:"zengyhs",  offered:169, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zengyuwe", offered:147, missed:1,  pct:"0.68%",  chat:"1.12%",  voice:"", wi:"0.00%",  live:"1.12%" },
+    { id:"zhangzxi", offered:135, missed:2,  pct:"1.48%",  chat:"4.17%",  voice:"", wi:"0.90%",  live:"4.17%" },
+    { id:"zhilranf", offered:172, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"zhoyifan", offered:38,  missed:1,  pct:"2.63%",  chat:"",       voice:"", wi:"2.63%",  live:"" },
+    { id:"zxinyan",  offered:189, missed:1,  pct:"0.53%",  chat:"",       voice:"", wi:"0.53%",  live:"" },
+  ],
+  "WK13": [
+    { id:"alpengyu", offered:119, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"congmeiw", offered:107, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"dechua",   offered:67,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"jingcili", offered:155, missed:3,  pct:"1.94%",  chat:"11.54%", voice:"", wi:"0.00%",  live:"11.54%" },
+    { id:"mengtint", offered:98,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"nbzhu",    offered:122, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"oyuwzhan", offered:130, missed:3,  pct:"2.31%",  chat:"4.76%",  voice:"0.00%", wi:"1.49%",  live:"3.17%" },
+    { id:"qdengyu",  offered:134, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"qlx",      offered:122, missed:1,  pct:"0.82%",  chat:"20.00%", voice:"", wi:"0.00%",  live:"20.00%" },
+    { id:"sichengc", offered:149, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"wyyizhen", offered:117, missed:1,  pct:"0.85%",  chat:"1.72%",  voice:"", wi:"0.00%",  live:"1.72%" },
+    { id:"xiaoxiyu", offered:99,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"0.00%", wi:"0.00%",  live:"0.00%" },
+    { id:"xuelizhx", offered:135, missed:1,  pct:"0.74%",  chat:"0.00%",  voice:"0.00%", wi:"1.39%",  live:"0.00%" },
+    { id:"yangasen", offered:56,  missed:1,  pct:"1.79%",  chat:"0.00%",  voice:"", wi:"1.89%",  live:"0.00%" },
+    { id:"yanghaia", offered:138, missed:3,  pct:"2.17%",  chat:"3.85%",  voice:"", wi:"0.00%",  live:"3.85%" },
+    { id:"yifliang", offered:113, missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+    { id:"yilinlid", offered:157, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"0.00%", wi:"0.00%",  live:"0.00%" },
+    { id:"yingzi",   offered:69,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"", wi:"0.00%",  live:"0.00%" },
+    { id:"yiniwe",   offered:105, missed:1,  pct:"0.95%",  chat:"3.33%",  voice:"", wi:"0.00%",  live:"3.33%" },
+    { id:"zengyhs",  offered:144, missed:2,  pct:"1.39%",  chat:"0.00%",  voice:"", wi:"1.40%",  live:"0.00%" },
+    { id:"zengyuwe", offered:166, missed:2,  pct:"1.20%",  chat:"4.44%",  voice:"0.00%", wi:"0.00%",  live:"4.26%" },
+    { id:"zhangzxi", offered:121, missed:1,  pct:"0.83%",  chat:"1.89%",  voice:"", wi:"0.00%",  live:"1.89%" },
+    { id:"zhilranf", offered:171, missed:1,  pct:"0.58%",  chat:"0.00%",  voice:"", wi:"0.69%",  live:"0.00%" },
+    { id:"zhoyifan", offered:81,  missed:19, pct:"23.46%", chat:"39.13%", voice:"", wi:"2.86%",  live:"39.13%" },
+    { id:"zxinyan",  offered:59,  missed:0,  pct:"0.00%",  chat:"",       voice:"", wi:"0.00%",  live:"" },
+  ],
+  "WK14": [
+    { id:"alpengyu",  offered:76,  missed:4,  pct:"5.26%",  chat:"18.18%", voice:"",      wi:"0.00%",  live:"18.18%" },
+    { id:"congmeiw",  offered:105, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"dechua",    offered:115, missed:1,  pct:"0.87%",  chat:"4.00%",  voice:"",      wi:"0.00%",  live:"4.00%"  },
+    { id:"jingcili",  offered:96,  missed:4,  pct:"4.17%",  chat:"5.71%",  voice:"",      wi:"0.00%",  live:"5.71%"  },
+    { id:"mengtint",  offered:163, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"nbzhu",     offered:67,  missed:1,  pct:"1.49%",  chat:"7.14%",  voice:"0.00%", wi:"0.00%",  live:"6.25%"  },
+    { id:"oyuwzhan",  offered:152, missed:1,  pct:"0.66%",  chat:"2.94%",  voice:"0.00%", wi:"0.00%",  live:"1.89%"  },
+    { id:"qdengyu",   offered:129, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"0.00%", wi:"0.00%",  live:"0.00%"  },
+    { id:"qlx",       offered:140, missed:1,  pct:"0.71%",  chat:"1.96%",  voice:"",      wi:"0.00%",  live:"1.96%"  },
+    { id:"sichengc",  offered:142, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"wyyizhen",  offered:138, missed:2,  pct:"1.45%",  chat:"25.00%", voice:"",      wi:"0.00%",  live:"25.00%" },
+    { id:"xiaoxiyu",  offered:18,  missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"xuelizhx",  offered:115, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"yangasen",  offered:167, missed:6,  pct:"3.59%",  chat:"7.32%",  voice:"",      wi:"2.38%",  live:"7.32%"  },
+    { id:"yanghaia",  offered:157, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"yifliang",  offered:129, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"yilinlid",  offered:160, missed:3,  pct:"1.88%",  chat:"3.26%",  voice:"",      wi:"0.00%",  live:"3.26%"  },
+    { id:"yingzi",    offered:112, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"yiniwe",    offered:143, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"zengyhs",   offered:158, missed:2,  pct:"1.27%",  chat:"3.70%",  voice:"",      wi:"0.00%",  live:"3.70%"  },
+    { id:"zengyuwe",  offered:128, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"0.00%", wi:"0.00%",  live:"0.00%"  },
+    { id:"zhangzxi",  offered:125, missed:0,  pct:"0.00%",  chat:"0.00%",  voice:"",      wi:"0.00%",  live:"0.00%"  },
+    { id:"zhilranf",  offered:144, missed:0,  pct:"0.00%",  chat:"",       voice:"0.00%", wi:"0.00%",  live:"0.00%"  },
+    { id:"zhoyifan",  offered:105, missed:2,  pct:"1.90%",  chat:"25.00%", voice:"",      wi:"0.00%",  live:"25.00%" },
+    { id:"zxinyan",   offered:116, missed:1,  pct:"0.86%",  chat:"0.00%",  voice:"",      wi:"1.41%",  live:"0.00%"  },
+  ],
+};
+const historicalLateData = [
+  { id:'yilinlid',  week:'2025 WK52', month:'dec', date:'Dec 27, 2025', shiftStart:'9:00 AM',  mins:10,  type:'LATE' },
+  { id:'zhoyifan',  week:'2025 WK52', month:'dec', date:'Dec 21, 2025', shiftStart:'1:00 PM',  mins:1,   type:'LATE'           },
+  { id:'nbzhu',     week:'2026 WK01', month:'jan', date:'Dec 31, 2025', shiftStart:'1:00 PM',  mins:1,   type:'LATE'           },
+  { id:'yifliang',  week:'2026 WK02', month:'jan', date:'Jan 9, 2026',  shiftStart:'10:00 AM', mins:1,   type:'LATE'           },
+
+  { id:'oyuwzhan',  week:'2026 WK03', month:'jan', date:'Jan 14, 2026', shiftStart:'9:00 AM',  mins:19,  type:'LATE'           },
+  { id:'dechua',    week:'2026 WK04', month:'jan', date:'Jan 19, 2026', shiftStart:'8:00 AM',  mins:12,  type:'LATE'           },
+  { id:'sichengc',  week:'2026 WK05', month:'jan', date:'Jan 28, 2026', shiftStart:'1:00 PM',  mins:5,   type:'LATE'           },
+  { id:'sichengc',  week:'2026 WK06', month:'feb', date:'Feb 4, 2026',  shiftStart:'9:00 AM',  mins:1,   type:'LATE'           },
+
+
+  // WK09
+  { id:'qdengyu',   week:'2026 WK09', month:'feb', date:'Feb 25, 2026', shiftStart:'9:00 AM',  mins:1,   type:'LATE'           },
+  // WK10
+  { id:'nbzhu',     week:'2026 WK10', month:'mar', date:'Mar 7, 2026',  shiftStart:'8:00 AM',  mins:44,  type:'LATE' },
+  { id:'xiaoxiyu',  week:'2026 WK10', month:'mar', date:'Mar 7, 2026',  shiftStart:'9:00 AM',  mins:108, type:'LATE' },
+  { id:'yanghaia',  week:'2026 WK10', month:'mar', date:'Mar 6, 2026',  shiftStart:'1:00 PM',  mins:2,   type:'LATE' },
+  { id:'yilinlid',  week:'2026 WK10', month:'mar', date:'Mar 7, 2026',  shiftStart:'10:00 AM', mins:96,  type:'LATE' },
+  { id:'zhangzxi',  week:'2026 WK10', month:'mar', date:'Mar 7, 2026',  shiftStart:'10:00 AM', mins:60,  type:'LATE' },
+  // WK11
+  { id:'dechua',    week:'2026 WK11', month:'mar', date:'Mar 11, 2026', shiftStart:'9:00 AM',  mins:60,  type:'LATE' },
+  { id:'dechua',    week:'2026 WK11', month:'mar', date:'Mar 12, 2026', shiftStart:'9:00 AM',  mins:1,   type:'LATE' },
+  { id:'oyuwzhan',  week:'2026 WK11', month:'mar', date:'Mar 9, 2026',  shiftStart:'9:00 AM',  mins:1,   type:'LATE' },
+  { id:'yanghaia',  week:'2026 WK11', month:'mar', date:'Mar 9, 2026',  shiftStart:'8:00 AM',  mins:43,  type:'LATE' },
+  { id:'yifliang',  week:'2026 WK11', month:'mar', date:'Mar 9, 2026',  shiftStart:'8:00 AM',  mins:64,  type:'LATE' },
+  { id:'yingzi',    week:'2026 WK11', month:'mar', date:'Mar 9, 2026',  shiftStart:'8:00 AM',  mins:3,   type:'LATE' },
+  { id:'yiniwe',    week:'2026 WK11', month:'mar', date:'Mar 9, 2026',  shiftStart:'8:00 AM',  mins:16,  type:'LATE' },
+  { id:'yiniwe',    week:'2026 WK11', month:'mar', date:'Mar 11, 2026', shiftStart:'8:00 AM',  mins:1,   type:'LATE' },
+  { id:'zhangzxi',  week:'2026 WK11', month:'mar', date:'Mar 9, 2026',  shiftStart:'9:00 AM',  mins:1,   type:'LATE' },
+  { id:'zhoyifan',  week:'2026 WK11', month:'mar', date:'Mar 9, 2026',  shiftStart:'9:00 AM',  mins:1,   type:'LATE' },
+  { id:'zxinyan',   week:'2026 WK11', month:'mar', date:'Mar 14, 2026', shiftStart:'1:00 PM',  mins:1,   type:'LATE' },
+  // WK12
+  { id:'alpengyu',  week:'2026 WK12', month:'mar', date:'Mar 19, 2026', shiftStart:'1:00 PM',  mins:1,   type:'LATE' },
+  { id:'dechua',    week:'2026 WK12', month:'mar', date:'Mar 19, 2026', shiftStart:'10:00 AM', mins:60,  type:'LATE' },
+  { id:'dechua',    week:'2026 WK12', month:'mar', date:'Mar 20, 2026', shiftStart:'2:00 PM',  mins:300, type:'LATE' },
+  { id:'dechua',    week:'2026 WK12', month:'mar', date:'Mar 21, 2026', shiftStart:'10:00 AM', mins:45,  type:'LATE' },
+  { id:'yilinlid',  week:'2026 WK12', month:'mar', date:'Mar 21, 2026', shiftStart:'8:00 AM',  mins:75,  type:'LATE' },
+  { id:'zhilranf',  week:'2026 WK12', month:'mar', date:'Mar 16, 2026', shiftStart:'1:00 PM',  mins:5,   type:'LATE' },
+  // WK13
+  { id:'nbzhu',     week:'2026 WK13', month:'mar', date:'Mar 25, 2026', shiftStart:'2:00 PM',  mins:1,   type:'LATE' },
+  { id:'qlx',       week:'2026 WK13', month:'mar', date:'Mar 23, 2026', shiftStart:'2:00 PM',  mins:43,  type:'LATE' },
+  { id:'sichengc',  week:'2026 WK13', month:'mar', date:'Mar 22, 2026', shiftStart:'2:00 PM',  mins:4,   type:'LATE' },
+  { id:'zengyuwe',  week:'2026 WK13', month:'mar', date:'Mar 27, 2026', shiftStart:'1:00 PM',  mins:1,   type:'LATE' },
+  { id:'zxinyan',   week:'2026 WK13', month:'mar', date:'Mar 25, 2026', shiftStart:'11:00 PM', mins:9,   type:'LATE' },
+  { id:'zxinyan',   week:'2026 WK13', month:'mar', date:'Mar 26, 2026', shiftStart:'11:00 PM', mins:9,   type:'LATE' },
+  // WK14
+  { id:'zhoyifan',  week:'2026 WK14', month:'apr', date:'Mar 31, 2026', shiftStart:'—',        mins:2,   type:'LATE' },
+  { id:'zhoyifan',  week:'2026 WK14', month:'apr', date:'Apr 1, 2026',  shiftStart:'—',        mins:2,   type:'LATE' },
+  { id:'zhoyifan',  week:'2026 WK14', month:'apr', date:'Apr 3, 2026',  shiftStart:'—',        mins:20,  type:'LATE' },
+  { id:'zengyuwe',  week:'2026 WK14', month:'apr', date:'Apr 3, 2026',  shiftStart:'—',        mins:43,  type:'LATE' },
+  // WK15
+  { id:'yilinlid',  week:'2026 WK15', month:'apr', date:'Apr 7, 2026',  shiftStart:'2:00 PM',  mins:240, type:'LATE' },
+  { id:'yingzi',    week:'2026 WK15', month:'apr', date:'Apr 7, 2026',  shiftStart:'10:00 AM', mins:240, type:'LATE' },
+];
+
+// ── Remap Audit Data ──────────────────────────────────────
+const remapAuditData = {
+  jan: [
+    { id:'qlx',      audit:6,  fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2,  fail:0, pct:'100%' },
+    { id:'yanghaia', audit:6,  fail:0, pct:'100%' },
+    { id:'yifliang', audit:6,  fail:1, pct:'83%'  },
+    { id:'yilinlid', audit:5,  fail:0, pct:'100%' },
+    { id:'yangasen', audit:6,  fail:0, pct:'100%' },
+    { id:'alpengyu', audit:5,  fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:5,  fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:5,  fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:5,  fail:0, pct:'100%' },
+    { id:'mengtint', audit:5,  fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:5,  fail:0, pct:'100%' },
+    { id:'zhilranf', audit:3,  fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:5,  fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:3,  fail:0, pct:'100%' },
+    { id:'sichengc', audit:5,  fail:0, pct:'100%' },
+    { id:'nbzhu',    audit:5,  fail:0, pct:'100%' },
+    { id:'yingzi',   audit:5,  fail:0, pct:'100%' },
+  ],
+  feb: [
+    { id:'qlx',      audit:4,  fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:6,  fail:0, pct:'100%' },
+    { id:'yanghaia', audit:6,  fail:0, pct:'100%' },
+    { id:'yifliang', audit:9,  fail:2, pct:'78%'  },
+    { id:'yilinlid', audit:4,  fail:0, pct:'100%' },
+    { id:'yangasen', audit:7,  fail:1, pct:'86%'  },
+    { id:'alpengyu', audit:8,  fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:9,  fail:2, pct:'78%'  },
+    { id:'zengyhs',  audit:6,  fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:5,  fail:0, pct:'100%' },
+    { id:'mengtint', audit:7,  fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:7,  fail:0, pct:'100%' },
+    { id:'zhilranf', audit:4,  fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:8,  fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:8,  fail:0, pct:'100%' },
+    { id:'sichengc', audit:5,  fail:1, pct:'80%'  },
+    { id:'nbzhu',    audit:4,  fail:0, pct:'100%' },
+    { id:'yingzi',   audit:9,  fail:1, pct:'89%'  },
+  ],
+  mar: [
+    { id:'qlx',      audit:8,  fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:8,  fail:0, pct:'100%' },
+    { id:'yanghaia', audit:8,  fail:0, pct:'100%' },
+    { id:'yifliang', audit:8,  fail:0, pct:'100%' },
+    { id:'yilinlid', audit:7,  fail:0, pct:'100%' },
+    { id:'yangasen', audit:8,  fail:0, pct:'100%' },
+    { id:'alpengyu', audit:7,  fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:7,  fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:8,  fail:1, pct:'88%'  },
+    { id:'xiaoxiyu', audit:8,  fail:0, pct:'100%' },
+    { id:'mengtint', audit:7,  fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:8,  fail:0, pct:'100%' },
+    { id:'zhilranf', audit:8,  fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:8,  fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:8,  fail:0, pct:'100%' },
+    { id:'sichengc', audit:8,  fail:0, pct:'100%' },
+    { id:'nbzhu',    audit:6,  fail:1, pct:'83%'  },
+    { id:'yingzi',   audit:8,  fail:0, pct:'100%' },
+  ],
+};
+
+// ── Remap Audit Weekly Data ────────────────────────────────
+const remapAuditWeekly = {
+  WK03: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:2, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:1, fail:0, pct:'100%' },
+    { id:'yangasen', audit:2, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:1, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:1, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:1, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:1, fail:0, pct:'100%' },
+    { id:'mengtint', audit:1, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:1, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:1, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:1, fail:0, pct:'100%' },
+    { id:'sichengc', audit:1, fail:0, pct:'100%' },
+    { id:'nbzhu',    audit:1, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:1, fail:0, pct:'100%' },
+  ],
+  WK04: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:2, fail:1, pct:'50%'  },
+    { id:'yilinlid', audit:2, fail:0, pct:'100%' },
+    { id:'yangasen', audit:2, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:2, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:2, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:2, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:2, fail:0, pct:'100%' },
+    { id:'mengtint', audit:2, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:2, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:2, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:2, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:2, fail:0, pct:'100%' },
+    { id:'sichengc', audit:2, fail:0, pct:'100%' },
+    { id:'nbzhu',    audit:2, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:2, fail:0, pct:'100%' },
+  ],
+  WK05: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:2, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:2, fail:0, pct:'100%' },
+    { id:'yangasen', audit:3, fail:1, pct:'67%'  },
+    { id:'alpengyu', audit:4, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:3, fail:1, pct:'67%'  },
+    { id:'zengyhs',  audit:2, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:3, fail:0, pct:'100%' },
+    { id:'mengtint', audit:3, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:3, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:4, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:4, fail:0, pct:'100%' },
+    { id:'sichengc', audit:1, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:3, fail:0, pct:'100%' },
+  ],
+  WK06: [
+    { id:'qlx',      audit:1, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:3, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:1, fail:0, pct:'100%' },
+    { id:'yangasen', audit:3, fail:1, pct:'67%'  },
+    { id:'alpengyu', audit:4, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:3, fail:1, pct:'67%'  },
+    { id:'zengyhs',  audit:2, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:3, fail:0, pct:'100%' },
+    { id:'mengtint', audit:3, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:3, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:4, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:4, fail:0, pct:'100%' },
+    { id:'sichengc', audit:1, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:3, fail:0, pct:'100%' },
+  ],
+  WK07: [
+    { id:'qlx',      audit:1, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:1, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:1, fail:0, pct:'100%' },
+    { id:'yifliang', audit:1, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:1, fail:0, pct:'100%' },
+    { id:'yangasen', audit:1, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:1, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:1, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:1, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:1, fail:0, pct:'100%' },
+    { id:'mengtint', audit:1, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:1, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:1, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:1, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:1, fail:0, pct:'100%' },
+    { id:'sichengc', audit:1, fail:0, pct:'100%' },
+    { id:'nbzhu',    audit:1, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:1, fail:0, pct:'100%' },
+  ],
+  WK08: [
+    { id:'qlx',      audit:1, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:1, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:1, fail:0, pct:'100%' },
+    { id:'yifliang', audit:1, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:1, fail:0, pct:'100%' },
+    { id:'yangasen', audit:1, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:1, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:1, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:1, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:1, fail:0, pct:'100%' },
+    { id:'mengtint', audit:1, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:1, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:1, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:1, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:1, fail:0, pct:'100%' },
+    { id:'sichengc', audit:2, fail:1, pct:'50%'  },
+    { id:'nbzhu',    audit:1, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:4, fail:1, pct:'75%'  },
+  ],
+  WK09: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:4, fail:2, pct:'50%'  },
+    { id:'yilinlid', audit:2, fail:0, pct:'100%' },
+    { id:'yangasen', audit:2, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:2, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:4, fail:1, pct:'75%'  },
+    { id:'zengyhs',  audit:2, fail:0, pct:'100%' },
+    { id:'mengtint', audit:2, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:2, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:2, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:2, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:2, fail:0, pct:'100%' },
+    { id:'sichengc', audit:2, fail:1, pct:'50%'  },
+    { id:'nbzhu',    audit:2, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:4, fail:1, pct:'75%'  },
+  ],
+  WK10: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:2, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:2, fail:0, pct:'100%' },
+    { id:'yangasen', audit:2, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:2, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:2, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:2, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:2, fail:0, pct:'100%' },
+    { id:'mengtint', audit:2, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:2, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:2, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:2, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:2, fail:0, pct:'100%' },
+    { id:'sichengc', audit:2, fail:0, pct:'100%' },
+    { id:'nbzhu',    audit:2, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:2, fail:0, pct:'100%' },
+  ],
+  WK11: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:2, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:2, fail:0, pct:'100%' },
+    { id:'yangasen', audit:2, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:2, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:2, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:2, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:2, fail:0, pct:'100%' },
+    { id:'mengtint', audit:2, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:2, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:2, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:2, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:2, fail:0, pct:'100%' },
+    { id:'sichengc', audit:2, fail:0, pct:'100%' },
+    { id:'nbzhu',    audit:2, fail:1, pct:'50%'  },
+    { id:'yingzi',   audit:2, fail:0, pct:'100%' },
+  ],
+  WK12: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:2, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:1, fail:0, pct:'100%' },
+    { id:'yangasen', audit:2, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:1, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:1, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:2, fail:1, pct:'50%'  },
+    { id:'xiaoxiyu', audit:2, fail:0, pct:'100%' },
+    { id:'mengtint', audit:1, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:2, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:2, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:2, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:2, fail:0, pct:'100%' },
+    { id:'sichengc', audit:2, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:2, fail:0, pct:'100%' },
+  ],
+  WK13: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:2, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:2, fail:0, pct:'100%' },
+    { id:'yangasen', audit:2, fail:0, pct:'100%' },
+    { id:'alpengyu', audit:2, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:2, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:2, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:2, fail:0, pct:'100%' },
+    { id:'mengtint', audit:2, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:2, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:2, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:2, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:2, fail:0, pct:'100%' },
+    { id:'sichengc', audit:2, fail:0, pct:'100%' },
+    { id:'nbzhu',    audit:2, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:2, fail:0, pct:'100%' },
+  ],
+  WK14: [
+    { id:'qlx',      audit:2, fail:0, pct:'100%' },
+    { id:'zxinyan',  audit:2, fail:0, pct:'100%' },
+    { id:'yanghaia', audit:2, fail:0, pct:'100%' },
+    { id:'yifliang', audit:2, fail:0, pct:'100%' },
+    { id:'yilinlid', audit:2, fail:0, pct:'100%' },
+    { id:'yangasen', audit:2, fail:1, pct:'50%'  },
+    { id:'alpengyu', audit:2, fail:0, pct:'100%' },
+    { id:'zhoyifan', audit:2, fail:0, pct:'100%' },
+    { id:'zengyhs',  audit:2, fail:0, pct:'100%' },
+    { id:'xiaoxiyu', audit:2, fail:2, pct:'0%'   },
+    { id:'mengtint', audit:2, fail:0, pct:'100%' },
+    { id:'xuelizhx', audit:2, fail:0, pct:'100%' },
+    { id:'zhilranf', audit:2, fail:0, pct:'100%' },
+    { id:'wyyizhen', audit:2, fail:0, pct:'100%' },
+    { id:'yiniwe',   audit:2, fail:0, pct:'100%' },
+    { id:'sichengc', audit:2, fail:2, pct:'0%'   },
+    { id:'nbzhu',    audit:2, fail:0, pct:'100%' },
+    { id:'yingzi',   audit:2, fail:0, pct:'100%' },
+  ],
+};
+
+// ── Data ──────────────────────────────────────────────────
+const lateData = {
+  yilinlid: [
+    { date: 'Apr 7', shiftStart: '2:00 PM', mins: 240 }
+  ],
+  yingzi: [
+    { date: 'Apr 7', shiftStart: '10:00 AM', mins: 240 }
+  ]
+};
+
+const missedData = [
+  { id:'alpengyu',  offered:133, missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'congmeiw',  offered:145, missed:1,  pct:'0.69%', chat:'1.22%',  voice:'',      wi:'0.00%',  live:'1.22%' },
+  { id:'dechua',    offered:68,  missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'jingcili',  offered:101, missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'mengtint',  offered:116, missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'nbzhu',     offered:90,  missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'oyuwzhan',  offered:88,  missed:4,  pct:'4.55%', chat:'5.00%',  voice:'',      wi:'0.00%',  live:'5.00%' },
+  { id:'qdengyu',   offered:64,  missed:1,  pct:'1.56%', chat:'3.70%',  voice:'',      wi:'0.00%',  live:'3.70%' },
+  { id:'qlx',       offered:176, missed:1,  pct:'0.57%', chat:'0.00%',  voice:'',      wi:'0.66%',  live:'0.00%' },
+  { id:'sichengc',  offered:127, missed:4,  pct:'3.15%', chat:'3.45%',  voice:'',      wi:'3.06%',  live:'3.45%' },
+  { id:'wyyizhen',  offered:107, missed:1,  pct:'0.93%', chat:'1.47%',  voice:'',      wi:'0.00%',  live:'1.47%' },
+  { id:'xiaoxiyu',  offered:87,  missed:0,  pct:'0.00%', chat:'0.00%',  voice:'0.00%', wi:'0.00%',  live:'0.00%' },
+  { id:'xuelizhx',  offered:149, missed:2,  pct:'1.34%', chat:'1.85%',  voice:'',      wi:'1.05%',  live:'1.85%' },
+  { id:'yangasen',  offered:136, missed:5,  pct:'3.68%', chat:'5.26%',  voice:'',      wi:'3.42%',  live:'5.26%' },
+  { id:'yanghaia',  offered:135, missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'yifliang',  offered:103, missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'yilinlid',  offered:108, missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'yingzi',    offered:116, missed:6,  pct:'5.17%', chat:'3.03%',  voice:'',      wi:'8.00%',  live:'3.03%' },
+  { id:'yiniwe',    offered:153, missed:1,  pct:'0.65%', chat:'1.32%',  voice:'',      wi:'0.00%',  live:'1.32%' },
+  { id:'zengyhs',   offered:159, missed:1,  pct:'0.63%', chat:'7.69%',  voice:'',      wi:'0.00%',  live:'7.69%' },
+  { id:'zengyuwe',  offered:110, missed:2,  pct:'1.82%', chat:'2.56%',  voice:'',      wi:'0.00%',  live:'2.56%' },
+  { id:'zhangzxi',  offered:86,  missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'zhilranf',  offered:101, missed:0,  pct:'0.00%', chat:'0.00%',  voice:'',      wi:'0.00%',  live:'0.00%' },
+  { id:'zhoyifan',  offered:111, missed:6,  pct:'5.41%', chat:'5.00%',  voice:'',      wi:'6.45%',  live:'5.00%' },
+  { id:'zxinyan',   offered:119, missed:3,  pct:'2.52%', chat:'0.00%',  voice:'',      wi:'2.91%',  live:'0.00%' },
+];
+
+function weekToLabel(week) {
+  if (week === 'WK52') return '2025 WK52';
+  return '2026 ' + week;
+}
+
+function pctNum(s) { return s ? parseFloat(s) : 0; }
+
+function statusDot(lateCount, livePct) {
+  const p = pctNum(livePct);
+  if (lateCount > 0 || p > 5) return '<span class="dot dot-red"></span>';
+  return '<span class="dot dot-green"></span>';
+}
+
+function pctTag(val) {
+  const p = pctNum(val);
+  if (!val || val === '') return '<span style="color:#aaa">—</span>';
+  if (p <= 5) return `<span class="tag tag-ok">${val}</span>`;
+  return `<span class="tag tag-bad">${val}</span>`;
+}
+
+function barColor(p) {
+  if (p === 0) return 'bar-green';
+  if (p <= 5) return 'bar-yellow';
+  return 'bar-red';
+}
+
+function initDashboard() {
+  renderOverview();
+
+  // Attendance table
+  renderLate();
+
+  // Missed contacts
+  renderMissed();
+
+  // Monthly data table
+  renderMonthly();
+  renderRemap();
+
+  // Individual select
+  const sel = document.getElementById('assoc-select');
+  missedData.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id; opt.textContent = r.id;
+    sel.appendChild(opt);
+  });
+  renderIndividual();
+}
+
+function renderMissed() {
+  const week = document.getElementById('missed-week-select').value;
+  const data = week === 'WK15' ? missedData : (weeklyMissedData[week] || []);
+  const label = weekToLabel(week);
+
+  document.getElementById('missed-section-week').textContent = label;
+  document.getElementById('mis-offered-sub').textContent = 'All channels ' + label;
+  document.getElementById('mis-missed-sub').textContent  = 'All channels ' + label;
+
+  // Missed deductions card
+  const misFiltered = minusScoreData.filter(d => d.wk === week && d.type === 'Miss');
+  const misTotal = misFiltered.reduce((s, d) => s + d.score, 0);
+  const misNames = [...new Set(misFiltered.map(d => d.login))];
+  document.getElementById('mis-minus-score').textContent = misTotal > 0 ? '-' + misTotal.toFixed(1) : '0';
+  document.getElementById('mis-minus-sub').textContent   = misNames.length > 0 ? misNames.join(', ') : 'No deductions';
+
+  const totalOffered = data.reduce((a,r) => a + (r.offered||0), 0);
+  const totalMissed  = data.reduce((a,r) => a + (r.missed||0),  0);
+  const overallPct   = totalOffered > 0 ? (totalMissed / totalOffered * 100).toFixed(2) + '%' : '—';
+  const zeroCount    = data.filter(r => r.missed === 0).length;
+
+  document.getElementById('mis-total-offered').textContent = totalOffered.toLocaleString();
+  document.getElementById('mis-total-missed').textContent  = totalMissed;
+  document.getElementById('mis-overall-pct').textContent   = overallPct;
+  document.getElementById('mis-zero-count').textContent    = zeroCount;
+
+  const misTbody = document.getElementById('missed-tbody');
+  misTbody.innerHTML = '';
+  data.forEach(r => {
+    const p = pctNum(r.pct);
+    const barW = Math.min(p * 10, 100);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${r.id}</strong></td>
+      <td>${r.offered}</td>
+      <td>${r.missed}</td>
+      <td>${pctTag(r.chat)}</td>
+      <td>${pctTag(r.wi)}</td>
+      <td>
+        <div class="pct-bar">
+          <div class="bar-bg"><div class="bar-fill ${barColor(p)}" style="width:${barW}%"></div></div>
+          ${pctTag(r.pct)}
+        </div>
+      </td>
+    `;
+    misTbody.appendChild(tr);
+  });
+}
+
+function renderOverview() {
+  const week = document.getElementById('header-week-select').value;
+  renderMinusScores(week);
+  const data = week === 'WK15' ? missedData : (weeklyMissedData[week] || []);
+  const label = weekToLabel(week);
+
+  // Missed contacts stats
+  const totalOffered = data.reduce((a,r) => a + (r.offered||0), 0);
+  const totalMissed  = data.reduce((a,r) => a + (r.missed||0),  0);
+  const teamPct = totalOffered > 0 ? (totalMissed / totalOffered * 100).toFixed(2) + '%' : '—';
+  const chatHighCount = data.filter(r => pctNum(r.pct) > 5).length;
+
+  const chatHighNames = data.filter(r => pctNum(r.pct) > 5).map(r => r.id);
+  document.getElementById('chat-high-count').textContent    = chatHighCount;
+  document.getElementById('ov-chat-sub').textContent        = chatHighNames.length > 0 ? chatHighNames.join(', ') : 'No issues';
+  document.getElementById('ov-total-missed').textContent    = totalMissed;
+  document.getElementById('ov-total-offered-sub').textContent = 'Overall team ' + label;
+  document.getElementById('ov-team-pct').textContent        = teamPct;
+  document.getElementById('ov-offered-sub').textContent     = totalOffered.toLocaleString() + ' offered total';
+
+  // Remap audit team stats
+  const remapRows = remapAuditWeekly[week] || [];
+  const remapCard = document.getElementById('ov-remap-pct');
+  const remapSub  = document.getElementById('ov-remap-sub');
+  if (remapRows.length > 0) {
+    const totalAudit = remapRows.reduce((a, r) => a + r.audit, 0);
+    const totalFail  = remapRows.reduce((a, r) => a + r.fail,  0);
+    const teamRemapPct = Math.round((totalAudit - totalFail) / totalAudit * 100) + '%';
+    const failNames = remapRows.filter(r => r.fail > 0).map(r => r.id);
+    remapCard.textContent = teamRemapPct;
+    remapCard.parentElement.className = 'card ' + (totalFail === 0 ? 'green' : 'orange');
+    remapSub.textContent = failNames.length > 0 ? failNames.join(', ') : 'All 100%';
+  } else {
+    remapCard.textContent = '—';
+    remapCard.parentElement.className = 'card green';
+    remapSub.textContent = 'No data this week';
+  }
+
+  // Late stats for selected week
+  let lateRecords = [];
+  if (week === 'WK15') {
+    Object.entries(lateData).forEach(([id, recs]) => recs.forEach(r => lateRecords.push({ id, mins: r.mins })));
+  } else {
+    historicalLateData.filter(r => r.week === label && r.type === 'LATE').forEach(r => lateRecords.push({ id: r.id, mins: r.mins }));
+  }
+  const lateCount   = lateRecords.length;
+  const lateNames   = [...new Set(lateRecords.map(r => r.id))];
+  document.getElementById('ov-late-count').textContent = lateCount;
+  document.getElementById('ov-late-sub').textContent   = lateNames.length ? lateNames.join(', ') : 'No late incidents';
+
+  // Overview table
+  const ovTbody = document.getElementById('overview-tbody');
+  ovTbody.innerHTML = '';
+  data.forEach(r => {
+    const recs = week === 'WK15'
+      ? (lateData[r.id] || [])
+      : historicalLateData.filter(x => x.id === r.id && x.week === label && x.type === 'LATE');
+    const lc = recs.length;
+    const totalMins = recs.reduce((a,b) => a + b.mins, 0);
+    const lateCell = lc > 0 ? `<span class="tag tag-late">${lc}x (${totalMins} mins)</span>` : '<span class="tag tag-ok">✓</span>';
+    const overallBad = pctNum(r.pct) > 5;
+    const remapEntry = (remapAuditWeekly[week] || []).find(x => x.id === r.id);
+    const remapBad = remapEntry && remapEntry.pct !== '100%';
+    const hasIssue = lc > 0 || overallBad || remapBad;
+    const tr = document.createElement('tr');
+    if (hasIssue) tr.classList.add('highlight-row');
+    tr.innerHTML = `
+      <td><strong>${r.id}</strong></td>
+      <td>${lateCell}</td>
+      <td>${overallBad ? '<span class="tag tag-bad">' + r.pct + '</span>' : '<span class="tag tag-ok">' + r.pct + '</span>'}</td>
+      <td>${(() => { const ra = (remapAuditWeekly[week] || []).find(x => x.id === r.id); return ra ? (ra.pct === '100%' ? '<span class="tag tag-ok">100%</span>' : '<span class="tag tag-bad">' + ra.pct + '</span>') : '<span style="color:#aaa">—</span>'; })()}</td>
+      <td>${hasIssue ? '<span class="dot dot-red"></span>' : '<span class="dot dot-green"></span>'}</td>
+    `;
+    ovTbody.appendChild(tr);
+  });
+}
+
+function renderLate() {
+  const week = document.getElementById('late-week-select').value;
+  const label = weekToLabel(week);
+  document.getElementById('late-detail-week').textContent = label;
+
+  // Late deductions card
+  const lateFiltered = minusScoreData.filter(d => d.wk === week && d.type === 'Late');
+  const lateTotal = lateFiltered.reduce((s, d) => s + d.score, 0);
+  const lateNames = [...new Set(lateFiltered.map(d => d.login))];
+  document.getElementById('late-minus-score').textContent = lateTotal > 0 ? '-' + lateTotal.toFixed(1) : '0';
+  document.getElementById('late-minus-sub').textContent   = lateNames.length > 0 ? lateNames.join(', ') : 'No deductions';
+
+  // 收集当周所有 late/ncns 记录
+  let allRecords = [];
+  if (week === 'WK15') {
+    Object.entries(lateData).forEach(([id, recs]) => {
+      recs.forEach(r => allRecords.push({ id, date: r.date + ', 2026', shiftStart: r.shiftStart || '—', mins: r.mins, type: 'LATE' }));
+    });
+  } else {
+    const wkLabel = weekToLabel(week);
+    historicalLateData.filter(r => r.week === wkLabel).forEach(r => {
+      allRecords.push({ id: r.id, date: r.date, shiftStart: r.shiftStart, mins: r.mins, type: r.type });
+    });
+  }
+
+  // 汇总卡片
+  const lateRecs = allRecords.filter(r => r.type === 'LATE');
+  const ncnsRecs = allRecords.filter(r => r.type === 'No Call No Show');
+  const affectedIds = [...new Set(lateRecs.map(r => r.id))];
+  const ncnsIds     = [...new Set(ncnsRecs.map(r => r.id))];
+
+  document.getElementById('late-total-count').textContent = lateRecs.length;
+  document.getElementById('late-total-sub').textContent   = label;
+  document.getElementById('late-assoc-count').textContent = affectedIds.length;
+  document.getElementById('late-assoc-names').textContent = affectedIds.length ? affectedIds.join(', ') : 'None';
+  document.getElementById('late-ncns-count').textContent  = ncnsIds.length;
+  document.getElementById('late-ncns-sub').textContent    = ncnsIds.length ? ncnsIds.join(', ') : 'No NCNS this week';
+
+  // Detail table
+  const tbody = document.getElementById('late-detail-tbody');
+  tbody.innerHTML = '';
+  if (allRecords.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#aaa">No late / NCNS incidents this week</td></tr>';
+  } else {
+    allRecords.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.className = r.type === 'No Call No Show' ? 'highlight-row' : 'late-row';
+      tr.innerHTML = `
+        <td><strong>${r.id}</strong></td>
+        <td>${r.date}</td>
+        <td>${r.shiftStart}</td>
+        <td>${r.mins} mins</td>
+        <td><span class="tag ${r.type === 'No Call No Show' ? 'tag-ncns' : 'tag-late'}">${r.type}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Sync attendance table
+  renderAttendance();
+}
+
+function renderAttendance() {
+  const week = document.getElementById('late-week-select').value;
+  const attTbody = document.getElementById('attendance-tbody');
+  attTbody.innerHTML = '';
+
+  // 所有员工列表
+  const allIds = missedData.map(r => r.id);
+
+  allIds.forEach(id => {
+    let lateRecords, ncnsCount;
+    if (week === 'WK15') {
+      // WK15 用当周 lateData
+      lateRecords = lateData[id] || [];
+      ncnsCount = 0;
+    } else {
+      // 历史数据从 historicalLateData 里按 week 筛选
+      const weekKey = weekToLabel(week);
+      const records = historicalLateData.filter(r => r.id === id && r.week === weekKey);
+      lateRecords = records.filter(r => r.type === 'LATE').map(r => ({ mins: r.mins }));
+      ncnsCount   = records.filter(r => r.type === 'No Call No Show').length;
+    }
+
+    const lc = lateRecords.length;
+    const totalMins = lateRecords.reduce((a, b) => a + b.mins, 0);
+    const hasIssue = lc > 0 || ncnsCount > 0;
+
+    const tr = document.createElement('tr');
+    if (ncnsCount > 0) tr.classList.add('highlight-row');
+    else if (lc > 0) tr.classList.add('late-row');
+
+    tr.innerHTML = `
+      <td><strong>${id}</strong></td>
+      <td>${lc > 0 ? `<strong style="color:#856404">${lc}</strong>` : '0'}</td>
+      <td>${totalMins > 0 ? `<strong style="color:#856404">${totalMins} mins</strong>` : '—'}</td>
+      <td>${ncnsCount > 0 ? `<strong style="color:#842029">${ncnsCount}</strong>` : '<span class="tag tag-ok">0</span>'}</td>
+      <td>${ncnsCount > 0 ? '<span class="tag tag-ncns">⛔ NCNS</span>' : lc > 0 ? '<span class="tag tag-late">⚠ Late</span>' : '<span class="tag tag-ok">✓ On Time</span>'}</td>
+    `;
+    attTbody.appendChild(tr);
+  });
+}
+
+function renderRemap() {
+  const week = document.getElementById('remap-week-select').value;
+  const label = weekToLabel(week);
+  document.getElementById('remap-section-title').textContent = 'Remap Audit by Associate — ' + label;
+
+  const rows = remapAuditWeekly[week] || [];
+  const tbody = document.getElementById('remap-tbody');
+  tbody.innerHTML = '';
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa">No remap audit data for this week</td></tr>';
+  } else {
+    const totalAudit = rows.reduce((a, r) => a + r.audit, 0);
+    const totalFail  = rows.reduce((a, r) => a + r.fail,  0);
+    const totalPct   = totalAudit > 0 ? Math.round((totalAudit - totalFail) / totalAudit * 100) + '%' : '—';
+    const perfect    = rows.filter(r => r.pct === '100%').length;
+
+    const cards = document.getElementById('remap-summary-cards');
+    cards.innerHTML = `
+      <div class="card blue"><div class="card-label">Week</div><div class="card-value">${week}</div><div class="card-sub">${label}</div></div>
+      <div class="card green"><div class="card-label">Total Audits</div><div class="card-value">${totalAudit}</div><div class="card-sub">This week</div></div>
+      <div class="card red"><div class="card-label">Total Fails</div><div class="card-value">${totalFail}</div><div class="card-sub">This week</div></div>
+      <div class="card ${totalFail === 0 ? 'green' : 'orange'}"><div class="card-label">Team Accuracy</div><div class="card-value">${totalPct}</div><div class="card-sub">Overall</div></div>
+      <div class="card green"><div class="card-label">100% Associates</div><div class="card-value">${perfect}</div><div class="card-sub">Perfect score</div></div>
+    `;
+
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      if (r.pct !== '100%') tr.classList.add('late-row');
+      tr.innerHTML =
+        '<td><strong>' + r.id + '</strong></td>' +
+        '<td>' + r.audit + '</td>' +
+        '<td>' + r.fail + '</td>' +
+        '<td>' + (r.pct === '100%' ? '<span class="tag tag-ok">100%</span>' : '<span class="tag tag-bad">' + r.pct + '</span>') + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+function renderMonthly() {
+  const month = document.getElementById('month-select').value;
+  const data = month === 'feb' ? monthlyDataFeb : month === 'mar' ? monthlyDataMar : monthlyData;
+  const label = month === 'feb' ? 'February 2026' : month === 'mar' ? 'March 2026' : 'January 2026';
+  const totalOffered = data.reduce((a,r)=>a+r.offered,0);
+  const totalMissed = data.reduce((a,r)=>a+r.missed,0);
+
+  document.getElementById('monthly-section-title').textContent = `Missed Contacts by Associate — ${label}`;
+  document.getElementById('monthly-late-title').textContent = `Late / NCNS by Associate — ${label}`;
+  document.getElementById('monthly-remap-title').textContent = `Remap Audit by Associate — ${label}`;
+
+  const cards = document.getElementById('monthly-summary-cards');
+  const monthlyFiltered = minusScoreData.filter(d => {
+    const wkNum = parseInt(d.wk.replace('WK',''));
+    if (month === 'jan') return wkNum >= 1  && wkNum <= 4;
+    if (month === 'feb') return wkNum >= 5  && wkNum <= 9;
+    if (month === 'mar') return wkNum >= 10 && wkNum <= 13;
+    return false;
+  });
+  const monthlyTotal = monthlyFiltered.reduce((s, d) => s + d.score, 0);
+  const monthlyNames = [...new Set(monthlyFiltered.map(d => d.login))];
+
+  // 当月有迟到/NCNS的人
+  const lateThisMonth = new Set(
+    historicalLateData.filter(r => r.month === month).map(r => r.id)
+  );
+  // WK15 当月(apr)也检查 lateData
+  if (month === 'apr') {
+    Object.keys(lateData).forEach(id => lateThisMonth.add(id));
+  }
+
+  // 前三名：无迟到/NCNS · Lowest Overall Missed% · Remap Audit 100%或无数据均可
+  const remapMonth = remapAuditData[month] || [];
+  const top3 = data
+    .filter(r => !lateThisMonth.has(r.id))
+    .sort((a, b) => {
+      // 先按 missed% 升序
+      const diff = parseFloat(a.pct) - parseFloat(b.pct);
+      if (diff !== 0) return diff;
+      // missed% 相同时，有 remap 100% 的优先
+      const raA = remapMonth.find(x => x.id === a.id);
+      const raB = remapMonth.find(x => x.id === b.id);
+      const aOk = raA && raA.pct === '100%' ? 0 : 1;
+      const bOk = raB && raB.pct === '100%' ? 0 : 1;
+      return aOk - bOk;
+    })
+    .slice(0, 3);
+
+  const medals = ['🥇', '🥈', '🥉'];
+  const top3Html = top3.length > 0
+    ? top3.map((r, i) => {
+        const ra = remapMonth.find(x => x.id === r.id);
+        return `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0;">
+          <span style="font-size:1.6rem;">${medals[i]}</span>
+          <div>
+            <div style="font-weight:700;font-size:0.95rem;">${r.id}</div>
+            <div style="font-size:0.8rem;color:#888;">Overall Missed: <strong style="color:#1a6fd4">${r.pct}</strong> &nbsp;|&nbsp; Remap Audit: <strong style="color:#51cf66">${ra ? ra.pct : '—'}</strong></div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="color:#aaa;font-size:0.88rem;">No eligible associates</div>';
+
+  cards.innerHTML = `
+    <div class="card blue"><div class="card-label">Month</div><div class="card-value">${month==='feb'?'2026 / 02':month==='mar'?'2026 / 03':'2026 / 01'}</div><div class="card-sub">${label}</div></div>
+    <div class="card green"><div class="card-label">Associates</div><div class="card-value">${data.length}</div><div class="card-sub">In monthly report</div></div>
+    <div class="card red"><div class="card-label">Total Missed</div><div class="card-value">${totalMissed}</div><div class="card-sub">All channels ${label}</div></div>
+    <div class="card orange"><div class="card-label">Total Offered</div><div class="card-value">${totalOffered.toLocaleString()}</div><div class="card-sub">All channels ${label}</div></div>
+    <div class="card orange"><div class="card-label">Monthly Deductions</div><div class="card-value">${monthlyTotal > 0 ? '-' + monthlyTotal.toFixed(1) : '0'}</div><div class="card-sub">${monthlyNames.length > 0 ? monthlyNames.join(', ') : 'No deductions'}</div></div>
+  `;
+
+  // 排名模块
+  document.getElementById('monthly-ranking-section').innerHTML = `
+    <div class="section-title"><span>🏆</span> Top 3 — ${label}</div>
+    <div style="font-size:0.8rem;color:#888;margin-bottom:12px;">No late / NCNS · Lowest Overall Missed% · 100% Remap Audit</div>
+    ${top3Html}
+  `;
+
+  const monTbody = document.getElementById('monthly-tbody');
+  monTbody.innerHTML = '';
+  data.forEach(r => {
+    const p = pctNum(r.live);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${r.id}</strong></td>
+      <td>${r.offered.toLocaleString()}</td>
+      <td>${r.missed}</td>
+      <td>${r.chatOff}</td>
+      <td>${r.chatMiss}</td>
+      <td>${pctTag(r.chatPct)}</td>
+      <td>${r.wiOff}</td>
+      <td>${r.wiMiss}</td>
+      <td>${pctTag(r.wiPct)}</td>
+      <td>${pctTag(r.pct)}</td>
+    `;
+    monTbody.appendChild(tr);
+  });
+
+  // Late section — 按 month 字段过滤
+  const allIds = missedData.map(r => r.id);
+  const lateTbody = document.getElementById('monthly-late-tbody');
+  lateTbody.innerHTML = '';
+
+  allIds.forEach(id => {
+    let lateRecords = [], ncnsCount = 0;
+    const recs = historicalLateData.filter(r => r.id === id && r.month === month);
+    lateRecords = lateRecords.concat(recs.filter(r => r.type === 'LATE').map(r => ({ mins: r.mins })));
+    ncnsCount += recs.filter(r => r.type === 'No Call No Show').length;
+
+    const lc = lateRecords.length;
+    const totalMins = lateRecords.reduce((a, b) => a + b.mins, 0);
+
+    const tr = document.createElement('tr');
+    if (ncnsCount > 0) tr.classList.add('highlight-row');
+    else if (lc > 0) tr.classList.add('late-row');
+    tr.innerHTML = `
+      <td><strong>${id}</strong></td>
+      <td>${lc > 0 ? `<strong style="color:#856404">${lc}</strong>` : '0'}</td>
+      <td>${totalMins > 0 ? `<strong style="color:#856404">${totalMins} mins</strong>` : '—'}</td>
+      <td>${ncnsCount > 0 ? `<strong style="color:#842029">${ncnsCount}</strong>` : '<span class="tag tag-ok">0</span>'}</td>
+      <td>${ncnsCount > 0 ? '<span class="tag tag-ncns">⛔ NCNS</span>' : lc > 0 ? '<span class="tag tag-late">⚠ Late</span>' : '<span class="tag tag-ok">✓ On Time</span>'}</td>
+    `;
+    lateTbody.appendChild(tr);
+  });
+
+  // Remap Audit 汇总表
+  const remapTbody = document.getElementById('monthly-remap-tbody');
+  if (remapTbody) {
+    remapTbody.innerHTML = '';
+    const remapRows = remapAuditData[month] || [];
+    if (remapRows.length === 0) {
+      remapTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa">No data</td></tr>';
+    } else {
+      remapRows.forEach(r => {
+        const tr = document.createElement('tr');
+        if (r.pct !== '100%') tr.classList.add('late-row');
+        tr.innerHTML = `
+          <td><strong>${r.id}</strong></td>
+          <td>${r.audit}</td>
+          <td>${r.fail}</td>
+          <td>${r.pct === '100%' ? '<span class="tag tag-ok">100%</span>' : `<span class="tag tag-bad">${r.pct}</span>`}</td>
+        `;
+        remapTbody.appendChild(tr);
+      });
+    }
+  }
+}
+
+function renderIndividual() {
+  const id   = document.getElementById('assoc-select').value;
+  const week = document.getElementById('indiv-week-select').value;
+  const weekLabel = weekToLabel(week);
+
+  // ── Late data for selected week ──
+  let lateRecords = [], ncnsCount = 0;
+  if (week === 'WK15') {
+    lateRecords = (lateData[id] || []).map(r => ({ date: r.date + ', 2026', mins: r.mins }));
+  } else {
+    const recs = historicalLateData.filter(r => r.id === id && r.week === weekLabel);
+    lateRecords = recs.filter(r => r.type === 'LATE').map(r => ({ date: r.date, mins: r.mins }));
+    ncnsCount   = recs.filter(r => r.type === 'No Call No Show').length;
+  }
+  const totalMins = lateRecords.reduce((a, b) => a + b.mins, 0);
+
+  // ── Missed contacts for selected week ──
+  const weekKey = week.replace('WK', 'WK');
+  const weekArr = week === 'WK15' ? missedData : (weeklyMissedData[week] || []);
+  const m = weekArr.find(r => r.id === id) || null;
+
+  // ── Monthly summaries ──
+  const mon    = monthlyData.find(r => r.id === id);
+  const monFeb = monthlyDataFeb.find(r => r.id === id);
+  const monMar = monthlyDataMar.find(r => r.id === id);
+
+  // ── Late HTML ──
+  let lateHtml;
+  if (ncnsCount > 0) {
+    lateHtml = `<p style="color:#842029;font-weight:600">⛔ No Call No Show (${ncnsCount}x)</p>`;
+  } else if (lateRecords.length === 0) {
+    lateHtml = '<p style="color:#51cf66;font-weight:600">✓ No late incidents this week</p>';
+  } else {
+    lateHtml = `<table><thead><tr><th>Date</th><th>Late Duration</th></tr></thead><tbody>
+      ${lateRecords.map(l => `<tr class="late-row"><td>${l.date}</td><td><strong>${l.mins} mins</strong></td></tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  // ── Missed contacts HTML ──
+  const missedHtml = m ? `
+    <div class="section" style="margin:0">
+      <div class="section-title"><span>📞</span> Missed Contact Breakdown — ${weekLabel}</div>
+      <table>
+        <thead><tr><th>Channel</th><th>Missed%</th></tr></thead>
+        <tbody>
+          <tr><td>Chat</td><td>${pctTag(m.chat)}</td></tr>
+          <tr><td>WI</td><td>${pctTag(m.wi)}</td></tr>
+          <tr><td><strong>Overall</strong></td><td>${pctTag(m.pct)}</td></tr>
+        </tbody>
+      </table>
+    </div>` : `
+    <div class="section" style="margin:0">
+      <div class="section-title"><span>📞</span> Missed Contact Breakdown — ${weekLabel}</div>
+      <p style="color:#aaa;font-size:0.88rem">Weekly missed contact data only available for WK14.</p>
+    </div>`;
+
+  // ── Remap Audit for selected week ──
+  const weekRemapArr = remapAuditWeekly[week] || [];
+  const weekRemap = weekRemapArr.find(r => r.id === id) || null;
+  const remapWeekHtml = weekRemap ? `
+    <div class="section" style="margin:0">
+      <div class="section-title"><span>🔍</span> Remap Audit — ${weekLabel}</div>
+      <table>
+        <thead><tr><th>Audit Count</th><th>Fail Count</th><th>Accuracy%</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>${weekRemap.audit}</td>
+            <td>${weekRemap.fail}</td>
+            <td>${weekRemap.pct === '100%' ? '<span class="tag tag-ok">100%</span>' : '<span class="tag tag-bad">' + weekRemap.pct + '</span>'}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>` : `
+    <div class="section" style="margin:0;margin-top:16px">
+      <div class="section-title"><span>🔍</span> Remap Audit — ${weekLabel}</div>
+      <p style="color:#aaa;font-size:0.88rem">No remap audit data for this week.</p>
+    </div>`;
+
+  // ── Monthly remap audit ──
+  const raJan = (remapAuditData.jan || []).find(r => r.id === id);
+  const raFeb = (remapAuditData.feb || []).find(r => r.id === id);
+  const raMar = (remapAuditData.mar || []).find(r => r.id === id);
+
+  document.getElementById('individual-content').innerHTML = `
+    <div class="summary-grid" style="margin-bottom:20px;">
+      <div class="card ${lateRecords.length > 0 || ncnsCount > 0 ? 'red' : 'green'}">
+        <div class="card-label">Late Incidents</div>
+        <div class="card-value">${lateRecords.length}</div>
+        <div class="card-sub">${ncnsCount > 0 ? ncnsCount + ' NCNS' : totalMins > 0 ? totalMins + ' total mins late' : 'Perfect attendance'}</div>
+      </div>
+      ${m ? `
+      <div class="card ${m.missed > 0 ? 'orange' : 'green'}">
+        <div class="card-label">Overall Missed%</div>
+        <div class="card-value">${m.pct}</div>
+        <div class="card-sub">${m.missed} missed / ${m.offered} offered</div>
+      </div>
+      <div class="card blue">
+        <div class="card-label">Chat Missed%</div>
+        <div class="card-value">${m.live && m.live !== '' && m.live !== '0%' ? m.live : '0.00%'}</div>
+        <div class="card-sub">Chat</div>
+      </div>` : ''}
+      ${(() => {
+        const indivFiltered = minusScoreData.filter(d => d.wk === week && d.login === id);
+        const indivTotal = indivFiltered.reduce((s, d) => s + d.score, 0);
+        const indivTypes = indivFiltered.map(d => d.type).join(', ');
+        return indivFiltered.length > 0 ? `
+      <div class="card orange">
+        <div class="card-label">Deductions</div>
+        <div class="card-value">-${indivTotal.toFixed(1)}</div>
+        <div class="card-sub">${indivTypes}</div>
+      </div>` : '';
+      })()}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px;">
+      ${missedHtml}
+      <div class="section" style="margin:0">
+        <div class="section-title"><span>⏰</span> Late / Attendance — ${weekLabel}</div>
+        ${lateHtml}
+      </div>
+      ${remapWeekHtml}
+    </div>
+    ${mon ? `
+    <div class="section" style="margin:0">
+      <div class="section-title"><span>📅</span> January 2026 Monthly Summary</div>
+      <table>
+        <thead><tr><th>Channel</th><th>Offered</th><th>Missed</th><th>Missed%</th></tr></thead>
+        <tbody>
+          <tr><td>Chat</td><td>${mon.chatOff}</td><td>${mon.chatMiss}</td><td>${pctTag(mon.chatPct)}</td></tr>
+          <tr><td>WI</td><td>${mon.wiOff}</td><td>${mon.wiMiss}</td><td>${pctTag(mon.wiPct)}</td></tr>
+          <tr><td><strong>Overall</strong></td><td><strong>${mon.offered.toLocaleString()}</strong></td><td><strong>${mon.missed}</strong></td><td>${pctTag(mon.pct)}</td></tr>
+          <tr><td><strong>Chat Missed%</strong></td><td colspan="3">${pctTag(mon.live)}</td></tr>
+          ${raJan ? '<tr><td><strong>Remap Audit</strong></td><td>' + raJan.audit + '</td><td>' + raJan.fail + ' fail</td><td>' + (raJan.pct === '100%' ? '<span class="tag tag-ok">100%</span>' : '<span class="tag tag-bad">' + raJan.pct + '</span>') + '</td></tr>' : ''}
+        </tbody>
+      </table>
+    </div>` : ''}
+    ${monFeb ? `
+    <div class="section" style="margin:0;margin-top:16px">
+      <div class="section-title"><span>📅</span> February 2026 Monthly Summary</div>
+      <table>
+        <thead><tr><th>Channel</th><th>Offered</th><th>Missed</th><th>Missed%</th></tr></thead>
+        <tbody>
+          <tr><td>Chat</td><td>${monFeb.chatOff}</td><td>${monFeb.chatMiss}</td><td>${pctTag(monFeb.chatPct)}</td></tr>
+          <tr><td>WI</td><td>${monFeb.wiOff}</td><td>${monFeb.wiMiss}</td><td>${pctTag(monFeb.wiPct)}</td></tr>
+          <tr><td><strong>Overall</strong></td><td><strong>${monFeb.offered.toLocaleString()}</strong></td><td><strong>${monFeb.missed}</strong></td><td>${pctTag(monFeb.pct)}</td></tr>
+          <tr><td><strong>Chat Missed%</strong></td><td colspan="3">${pctTag(monFeb.live)}</td></tr>
+          ${raFeb ? '<tr><td><strong>Remap Audit</strong></td><td>' + raFeb.audit + '</td><td>' + raFeb.fail + ' fail</td><td>' + (raFeb.pct === '100%' ? '<span class="tag tag-ok">100%</span>' : '<span class="tag tag-bad">' + raFeb.pct + '</span>') + '</td></tr>' : ''}
+        </tbody>
+      </table>
+    </div>` : ''}
+    ${monMar ? `
+    <div class="section" style="margin:0;margin-top:16px">
+      <div class="section-title"><span>📅</span> March 2026 Monthly Summary</div>
+      <table>
+        <thead><tr><th>Channel</th><th>Offered</th><th>Missed</th><th>Missed%</th></tr></thead>
+        <tbody>
+          <tr><td>Chat</td><td>${monMar.chatOff}</td><td>${monMar.chatMiss}</td><td>${pctTag(monMar.chatPct)}</td></tr>
+          <tr><td>WI</td><td>${monMar.wiOff}</td><td>${monMar.wiMiss}</td><td>${pctTag(monMar.wiPct)}</td></tr>
+          <tr><td><strong>Overall</strong></td><td><strong>${monMar.offered.toLocaleString()}</strong></td><td><strong>${monMar.missed}</strong></td><td>${pctTag(monMar.pct)}</td></tr>
+          <tr><td><strong>Chat Missed%</strong></td><td colspan="3">${pctTag(monMar.live)}</td></tr>
+          ${raMar ? '<tr><td><strong>Remap Audit</strong></td><td>' + raMar.audit + '</td><td>' + raMar.fail + ' fail</td><td>' + (raMar.pct === '100%' ? '<span class="tag tag-ok">100%</span>' : '<span class="tag tag-bad">' + raMar.pct + '</span>') + '</td></tr>' : ''}
+        </tbody>
+      </table>
+    </div>` : ''}
+  `;
+}
+</script>
+</body>
+</html>
